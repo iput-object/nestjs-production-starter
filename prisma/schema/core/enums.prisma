@@ -1,0 +1,22 @@
+// ============================================================
+// core/enums.prisma
+// All auth-related enums — define once, use across core
+// ============================================================
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  RESTRICTED
+  SUSPENDED
+}

@@ -1,0 +1,14 @@
+model Activity {
+  id        String  @id @default(uuid())
+  userId    String? // null = system action
+  action    String // dot-namespaced: "resource.verb"
+  metadata  Json? // { ip, userAgent, targetId, ... }
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activities")
+}

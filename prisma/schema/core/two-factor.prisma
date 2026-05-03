@@ -1,0 +1,28 @@
+model TwoFactor {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  secret    String // TOTP secret — encrypt before storing
+  isEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  backupCodes TwoFactorBackupCode[]
+
+  @@map("two_factors")
+}
+
+model TwoFactorBackupCode {
+  id          String    @id @default(uuid())
+  twoFactorId String
+  codeHash    String    @unique // SHA-256 of plaintext backup code
+  usedAt      DateTime? // null = still valid
+
+  createdAt DateTime @default(now())
+
+  twoFactor TwoFactor @relation(fields: [twoFactorId], references: [id], onDelete: Cascade)
+
+  @@index([twoFactorId])
+  @@map("two_factor_backup_codes")
+}

@@ -1,0 +1,29 @@
+// ============================================================
+// core/session.prisma
+//
+// Refresh token audit trail.
+// Access tokens → stateless JWT (15m), never stored.
+// Refresh tokens → SHA-256 hashed, stored here + Redis.
+//
+// Redis: session:{refreshTokenHash} → userId    TTL: 30d
+//
+// On rotation : new refreshTokenHash, revokedAt set on old row
+// On logout   : revokedAt set, Redis key deleted
+// ============================================================
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String    @unique // SHA-256 hex of raw refresh token
+  ipAddress        String?
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime? // null = active
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}

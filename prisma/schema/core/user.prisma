@@ -1,0 +1,38 @@
+model User {
+  id              String     @id @default(uuid())
+  email           String?    @unique // nullable — Apple can hide email
+  phone           String?    @unique // optional — for OTP via SMS
+  role            Role       @default(USER)
+  status          UserStatus @default(ACTIVE)
+  reason          String?
+  isEmailVerified Boolean    @default(false)
+  isPhoneVerified Boolean    @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // DELETED
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime? // soft delete
+
+  profile     Profile?
+  credentials Credential[]
+  sessions    Session[]
+  twoFactor   TwoFactor?
+
+  @@map("users")
+}
+
+model Profile {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  name      String?
+  avatarUrl String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
