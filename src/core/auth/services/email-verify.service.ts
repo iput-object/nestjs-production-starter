@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
@@ -6,6 +11,7 @@ import { MAILER_PORT } from '@/infrastructure/mailer/mailer.constants';
 import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
+import { OtpService } from '@/core/auth/services/otp.service';
 
 @Injectable()
 export class EmailVerifyService {
@@ -14,6 +20,7 @@ export class EmailVerifyService {
     private readonly crypto: CryptoService,
     private readonly cache: AuthCacheService,
     private readonly users: UserRepository,
+    private readonly otp: OtpService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
   ) {}
 
@@ -50,5 +57,33 @@ export class EmailVerifyService {
     await this.cache.deleteEmailVerify(tokenHash);
 
     return { userId: record.userId };
+  }
+
+  async issueOtpByEmail(email: string): Promise<void> {
+    const user = await this.users.findByEmail(email);
+    if (!user || user.isEmailVerified) {
+      return;
+    }
+    await this.otp.send({
+      channel: 'email',
+      userId: user.id,
+      purpose: 'register-verify',
+      destination: email,
+    });
+  }
+
+  async confirmOtp(email: string, code: string): Promise<{ userId: string }> {
+    const user = await this.users.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Code is invalid or expired');
+    }
+    await this.otp.verify({
+      channel: 'email',
+      userId: user.id,
+      purpose: 'register-verify',
+      code,
+    });
+    await this.users.markEmailVerified(user.id);
+    return { userId: user.id };
   }
 }

@@ -53,6 +53,11 @@ export class RegisterService {
     } catch {
       // logged centrally by the mailer; swallow so registration still succeeds
     }
+    try {
+      await this.emailVerify.issueOtpByEmail(dto.email);
+    } catch {
+      // logged centrally by the mailer; swallow so registration still succeeds
+    }
 
     return this.tokens.issue(user.id, context);
   }

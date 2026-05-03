@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Config } from '@/configs/environment.config';
+import { AuthController } from '@/core/auth/auth.controller';
 import { JwtStrategy } from '@/core/auth/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from '@/core/auth/strategies/jwt-refresh.strategy';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
@@ -10,6 +11,18 @@ import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
+import { RegisterService } from '@/core/auth/services/register.service';
+import { LoginService } from '@/core/auth/services/login.service';
+import { TokenService } from '@/core/auth/services/token.service';
+import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
+import { PasswordResetService } from '@/core/auth/services/password-reset.service';
+import { PasswordChangeService } from '@/core/auth/services/password-change.service';
+import { OtpService } from '@/core/auth/services/otp.service';
+import { TotpService } from '@/core/auth/services/totp.service';
+import { TwoFactorService } from '@/core/auth/services/two-factor.service';
+import { ChangeContactService } from '@/core/auth/services/change-contact.service';
+import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
+import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
 
 @Module({
   imports: [
@@ -28,14 +41,27 @@ import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.reposit
       },
     }),
   ],
+  controllers: [AuthController],
   providers: [
     JwtStrategy,
     JwtRefreshStrategy,
+    JwtAuthGuard,
     AuthCacheService,
     UserRepository,
     CredentialRepository,
     SessionRepository,
     TwoFactorRepository,
+    RegisterService,
+    LoginService,
+    TokenService,
+    EmailVerifyService,
+    PasswordResetService,
+    PasswordChangeService,
+    OtpService,
+    TotpService,
+    TwoFactorService,
+    ChangeContactService,
+    PhoneVerifyService,
   ],
   exports: [
     JwtModule,
