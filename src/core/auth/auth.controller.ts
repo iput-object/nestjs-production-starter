@@ -50,6 +50,7 @@ import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
+import locals from '@/locals';
 
 @Controller('auth')
 export class AuthController {
@@ -70,7 +71,10 @@ export class AuthController {
   @Post('register')
   async registerAccount(@Body() dto: RegisterDto, @Req() req: Request) {
     const tokens = await this.register.register(dto, this.requestContext(req));
-    return { root: { tokens } };
+    return {
+      message: locals.auth.account_created_successfully,
+      root: { tokens },
+    };
   }
 
   @Post('login')
@@ -78,11 +82,13 @@ export class AuthController {
     const result = await this.login.login(dto, this.requestContext(req));
     if (result.kind === 'tokens') {
       return {
-        data: result.user ,
+        message: locals.auth.logged_in_successfully,
+        data: result.user,
         root: { tokens: result.tokens },
       };
     }
     return {
+      message: locals.auth.two_factor_required,
       root: { challengeId: result.challengeId, methods: result.methods },
     };
   }

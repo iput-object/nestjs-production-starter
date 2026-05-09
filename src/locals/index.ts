@@ -2,6 +2,7 @@ import pagination from './pagination.json';
 import response from './response.json';
 import error from './error.json';
 import logging from './logging.json';
+import auth from './auth.json';
 //
 //
 //
@@ -26,4 +27,5 @@ export default withFallback({
   response,
   error,
   logging,
+  auth,
 });
