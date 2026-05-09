@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { setupSwagger } from '@/configs/swagger.config';
@@ -9,6 +9,7 @@ import { RedisIoAdapter } from '@/infrastructure/redis/redis-io.adapter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService<Config>);
+  const logger = new Logger(config.get('app').name);
 
   // API PREFIX AND VERSION
   app.setGlobalPrefix('api');
@@ -45,6 +46,12 @@ async function bootstrap() {
 
   const port = config.get('app').port ?? 3000;
   await app.listen(port);
+
+  const baseUrl = config.get('app').url ?? `http://localhost:${port}`;
+  logger.log(`API  ready at ${baseUrl}/api/v1`);
+  if (config.get('app').nodeEnv !== 'production') {
+    logger.log(`Docs ready at ${baseUrl}/api/docs`);
+  }
 }
 
 bootstrap();
