@@ -111,9 +111,8 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Body() dto: RefreshDto): Promise<{ success: true }> {
+  async logout(@Body() dto: RefreshDto): Promise<void> {
     await this.tokens.revoke(dto.refreshToken);
-    return { success: true };
   }
 
   @Post('email/verify')
@@ -129,7 +128,7 @@ export class AuthController {
   @Post('email/verify/resend')
   async resendEmailVerification(
     @Body() dto: ResendEmailVerificationDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     const sendLink = dto.sendLink ?? true;
     const sendOtp = dto.sendOtp ?? true;
     const user = await this.users.findByEmail(dto.email);
@@ -141,38 +140,33 @@ export class AuthController {
         await this.emailVerify.issueOtpByEmail(dto.email);
       }
     }
-    return { success: true };
   }
 
   @Post('password/forgot')
-  async forgotPassword(@Body() dto: ForgetPasswordDto): Promise<{ success: true }> {
+  async forgotPassword(@Body() dto: ForgetPasswordDto): Promise<void> {
     await this.passwordReset.request(dto.email, { sendLink: true, sendOtp: true });
-    return { success: true };
   }
 
   @Post('password/forgot/request')
   async forgotPasswordWithOptions(
     @Body() dto: ForgotPasswordRequestOptionsDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.passwordReset.request(dto.email, {
       sendLink: dto.sendLink ?? true,
       sendOtp: dto.sendOtp ?? true,
     });
-    return { success: true };
   }
 
   @Post('password/reset')
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ success: true }> {
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.passwordReset.reset(dto.token, dto.password);
-    return { success: true };
   }
 
   @Post('password/reset/otp')
   async resetPasswordByOtp(
     @Body() dto: ResetPasswordByOtpDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.passwordReset.resetByOtp(dto.email, dto.code, dto.password);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -180,9 +174,8 @@ export class AuthController {
   async changePassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: ChangePasswordDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.passwordChange.change(userId, dto.currentPassword, dto.newPassword);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -204,9 +197,8 @@ export class AuthController {
   async confirmTotp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.totp.confirm(userId, dto.code);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -214,11 +206,10 @@ export class AuthController {
   async enrollEmailOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollEmailOtpDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
     await this.twoFactor.enrollEmailOtp(user, dto.email);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -226,9 +217,8 @@ export class AuthController {
   async confirmEmailOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.twoFactor.confirmEmailOtp(userId, dto.code);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -236,11 +226,10 @@ export class AuthController {
   async enrollSmsOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollSmsOtpDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
     await this.twoFactor.enrollSmsOtp(user, dto.phone);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -248,9 +237,8 @@ export class AuthController {
   async confirmSmsOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.twoFactor.confirmSmsOtp(userId, dto.code);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -258,9 +246,8 @@ export class AuthController {
   async disableTwoFactor(
     @CurrentUser('sub') userId: string,
     @Param('methodId') methodId: string,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.twoFactor.disable(userId, methodId);
-    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -275,9 +262,8 @@ export class AuthController {
   @Post('2fa/challenge/send')
   async sendTwoFactorChallengeCode(
     @Body() dto: TwoFactorChallengeSendDto,
-  ): Promise<{ success: true }> {
+  ): Promise<void> {
     await this.twoFactor.sendChallengeCode(dto.challengeId, dto.type);
-    return { success: true };
   }
 
   @Post('2fa/challenge/verify')

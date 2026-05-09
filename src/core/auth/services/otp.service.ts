@@ -19,6 +19,7 @@ import {
   AuthCacheService,
   OtpPurpose,
 } from '@/core/auth/services/auth-cache.service';
+import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 
 const BCRYPT_ROUNDS = 8;
 
@@ -47,6 +48,7 @@ export class OtpService {
     private readonly cache: AuthCacheService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
     @Inject(SMS_PORT) private readonly sms: SmsPort,
+    private readonly devSecret: DevSecretLogger,
   ) {}
 
   async send(input: SendOtpInput): Promise<void> {
@@ -84,6 +86,12 @@ export class OtpService {
 
     const code = this.crypto.randomNumericCode(OTP_POLICY.length);
     const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+
+    this.devSecret.log('otp', code, {
+      channel: input.channel,
+      purpose: input.purpose,
+      destination: input.destination,
+    });
 
     const ttl =
       input.channel === 'email'

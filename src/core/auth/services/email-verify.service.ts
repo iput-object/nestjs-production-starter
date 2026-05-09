@@ -13,6 +13,7 @@ import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { OtpService } from '@/core/auth/services/otp.service';
+import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 
 @Injectable()
 export class EmailVerifyService {
@@ -23,6 +24,7 @@ export class EmailVerifyService {
     private readonly users: UserRepository,
     private readonly otp: OtpService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
+    private readonly devSecret: DevSecretLogger,
   ) {}
 
   async issueAndSend(userId: string, email: string): Promise<void> {
@@ -39,6 +41,7 @@ export class EmailVerifyService {
 
     const hours = Math.round(AUTH_POLICY.emailVerifyTtlSeconds / 3600);
     const link = `${app.frontendUrl.replace(/\/$/, '')}/verify-email?token=${rawToken}`;
+    this.devSecret.log('email-verify-token', rawToken, { email, link });
     await this.mailer.send({
       to: email,
       subject: 'Verify your email',
@@ -47,7 +50,7 @@ export class EmailVerifyService {
     });
   }
 
-  async confirm(token: string): Promise<{ userId: string }> {
+  async confirm(token: string): Promise<void> {
     const tokenHash = this.crypto.hashSha256(token);
     const record = await this.cache.getEmailVerify(tokenHash);
     if (!record) {
@@ -56,8 +59,6 @@ export class EmailVerifyService {
 
     await this.users.markEmailVerified(record.userId);
     await this.cache.deleteEmailVerify(tokenHash);
-
-    return { userId: record.userId };
   }
 
   async issueOtpByEmail(email: string): Promise<void> {
@@ -73,7 +74,7 @@ export class EmailVerifyService {
     });
   }
 
-  async confirmOtp(email: string, code: string): Promise<{ userId: string }> {
+  async confirmOtp(email: string, code: string): Promise<void> {
     const user = await this.users.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Code is invalid or expired');
@@ -85,6 +86,5 @@ export class EmailVerifyService {
       code,
     });
     await this.users.markEmailVerified(user.id);
-    return { userId: user.id };
   }
 }

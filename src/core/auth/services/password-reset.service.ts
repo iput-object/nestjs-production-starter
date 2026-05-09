@@ -17,6 +17,7 @@ import { TokenService } from '@/core/auth/services/token.service';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { OtpService } from '@/core/auth/services/otp.service';
+import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -31,6 +32,7 @@ export class PasswordResetService {
     private readonly tokens: TokenService,
     private readonly otp: OtpService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
+    private readonly devSecret: DevSecretLogger,
   ) {}
 
   async request(
@@ -59,6 +61,7 @@ export class PasswordResetService {
 
       const link = `${app.frontendUrl.replace(/\/$/, '')}/reset-password?token=${rawToken}`;
       const minutes = Math.round(AUTH_POLICY.passwordResetTtlSeconds / 60);
+      this.devSecret.log('password-reset-token', rawToken, { email, link });
 
       try {
         await this.mailer.send({

@@ -22,6 +22,7 @@ import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import { ChangeContactService } from '@/core/auth/services/change-contact.service';
 import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
+import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
 
 @Module({
@@ -62,6 +63,7 @@ import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
     TwoFactorService,
     ChangeContactService,
     PhoneVerifyService,
+    DevSecretLogger,
   ],
   exports: [
     JwtModule,

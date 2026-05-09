@@ -75,7 +75,8 @@ export class TransformResponseInterceptor<T>
             response.locals?.message ??
             this.defaultMessage(statusCode, request.method),
           statusCode,
-          data: (returned as T) ?? null,
+          ...(returned !== undefined &&
+            returned !== null && { data: returned as T }),
         };
       }),
     );
