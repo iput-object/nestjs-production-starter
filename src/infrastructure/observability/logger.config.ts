@@ -75,36 +75,40 @@ export const buildLoggerOptions = (config: LoggerConfigSlice): Params => {
           statusCode: res.statusCode,
         }),
       },
-      transport: isProduction
-        ? otelLogsEnabled
-          ? {
-              targets: [
-                {
-                  target: 'pino/file',
-                  options: { destination: 1 },
+      transport: (() => {
+        const stdoutTarget = isProduction
+          ? { target: 'pino/file', options: { destination: 1 }, level }
+          : {
+              target: 'pino-pretty',
+              level,
+              options: {
+                colorize: true,
+                singleLine: false,
+                translateTime: 'SYS:HH:MM:ss.l',
+                ignore: 'pid,hostname,service',
+              },
+            };
+
+        if (!otelLogsEnabled) {
+          return { targets: [stdoutTarget] };
+        }
+
+        return {
+          targets: [
+            stdoutTarget,
+            {
+              target: 'pino-opentelemetry-transport',
+              level,
+              options: {
+                loggerName: serviceName,
+                resourceAttributes: {
+                  'service.name': serviceName,
                 },
-                {
-                  target: 'pino-opentelemetry-transport',
-                  level,
-                  options: {
-                    loggerName: serviceName,
-                    resourceAttributes: {
-                      'service.name': serviceName,
-                    },
-                  },
-                },
-              ],
-            }
-          : undefined
-        : {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              singleLine: false,
-              translateTime: 'SYS:HH:MM:ss.l',
-              ignore: 'pid,hostname,service',
+              },
             },
-          },
+          ],
+        };
+      })(),
     },
   };
 };
