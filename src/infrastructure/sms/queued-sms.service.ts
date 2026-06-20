@@ -8,10 +8,7 @@ import {
   SMS_QUEUE,
 } from '@/infrastructure/queue/queue.constants';
 import type { SmsJobData } from '@/infrastructure/queue/queue.types';
-import type {
-  SmsMessage,
-  SmsPort,
-} from '@/infrastructure/sms/sms.types';
+import type { SmsMessage, SmsPort } from '@/infrastructure/sms/sms.types';
 
 @Injectable()
 export class QueuedSmsService implements SmsPort {

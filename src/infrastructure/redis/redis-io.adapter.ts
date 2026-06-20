@@ -20,10 +20,7 @@ export class RedisIoAdapter extends IoAdapter {
     this.subClient = pubClient.duplicate();
     await this.subClient.connect();
 
-    this.adapterConstructor = createAdapter(
-      pubClient as unknown as Redis,
-      this.subClient,
-    );
+    this.adapterConstructor = createAdapter(pubClient, this.subClient);
     this.logger.log('Redis WebSocket adapter enabled');
   }
 

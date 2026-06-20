@@ -34,13 +34,14 @@ export interface ServiceResponse<T> {
 
 function isServiceResponse<T>(value: unknown): value is ServiceResponse<T> {
   if (value === null || typeof value !== 'object') return false;
-  return 'data' in value || 'root' in value;
+  return 'data' in value || 'root' in value || 'message' in value;
 }
 
 @Injectable()
-export class TransformResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
-{
+export class TransformResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler<T>,

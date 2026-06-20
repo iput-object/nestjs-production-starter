@@ -7,7 +7,10 @@ import locals from '@locals';
 export class PaginationPipe implements PipeTransform {
   transform(value: any): Pagination {
     const maxLimit = 150;
-    const hasPageParam = Object.prototype.hasOwnProperty.call(value ?? {}, 'page');
+    const hasPageParam = Object.prototype.hasOwnProperty.call(
+      value ?? {},
+      'page',
+    );
     const page = parseInt(value?.page) || 1;
     const limit = parseInt(value?.limit) || 10;
     const cursor =

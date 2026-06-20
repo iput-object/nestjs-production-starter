@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { RedisAdapter } from '@/infrastructure/redis/redis.adapter';
 

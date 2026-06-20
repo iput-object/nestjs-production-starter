@@ -6,6 +6,8 @@ import '@/infrastructure/observability/tracing.bootstrap';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { setupSwagger } from '@/configs/swagger.config';
@@ -27,7 +29,22 @@ async function bootstrap() {
   });
 
   app.enableShutdownHooks(['SIGINT', 'SIGTERM']);
-  app.enableCors();
+  // CSP is left to the frontend (this API serves JSON, and helmet's default CSP
+  // breaks the Swagger UI); CORP is relaxed so the browser SPA can call the API
+  // cross-origin. The useful headers (HSTS, nosniff, no X-Powered-By) stay on.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+  app.use(cookieParser());
+  // Web clients send the auth cookie cross-origin, which requires a concrete
+  // origin (not `*`) plus credentials. Mobile clients don't use CORS.
+  app.enableCors({
+    origin: config.get('app', { infer: true })!.frontendUrl,
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

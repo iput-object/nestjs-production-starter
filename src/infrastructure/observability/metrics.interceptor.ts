@@ -51,7 +51,7 @@ export class MetricsInterceptor implements NestInterceptor {
             typeof err === 'object' &&
             err !== null &&
             'status' in err &&
-            typeof (err as { status: unknown }).status === 'number'
+            typeof err.status === 'number'
               ? (err as { status: number }).status
               : 500;
           finalize(status);

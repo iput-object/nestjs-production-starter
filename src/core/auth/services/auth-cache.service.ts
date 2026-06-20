@@ -48,7 +48,11 @@ export class AuthCacheService {
     record: OtpRecord,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.cache.set(this.otpKey(channel, userId, purpose), record, ttlSeconds);
+    await this.cache.set(
+      this.otpKey(channel, userId, purpose),
+      record,
+      ttlSeconds,
+    );
   }
 
   getOtp(
@@ -84,7 +88,11 @@ export class AuthCacheService {
     count: number,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.cache.set(this.otpThrottleKey(channel, destination), count, ttlSeconds);
+    await this.cache.set(
+      this.otpThrottleKey(channel, destination),
+      count,
+      ttlSeconds,
+    );
   }
 
   // ---------- Password reset ----------
@@ -97,7 +105,9 @@ export class AuthCacheService {
   }
 
   getPasswordReset(tokenHash: string): Promise<PasswordResetRecord | null> {
-    return this.cache.get<PasswordResetRecord>(this.passwordResetKey(tokenHash));
+    return this.cache.get<PasswordResetRecord>(
+      this.passwordResetKey(tokenHash),
+    );
   }
 
   async deletePasswordReset(tokenHash: string): Promise<void> {
@@ -127,7 +137,11 @@ export class AuthCacheService {
     record: TwoFactorChallengeRecord,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.cache.set(this.twoFactorChallengeKey(challengeId), record, ttlSeconds);
+    await this.cache.set(
+      this.twoFactorChallengeKey(challengeId),
+      record,
+      ttlSeconds,
+    );
   }
 
   getTwoFactorChallenge(
@@ -172,7 +186,9 @@ export class AuthCacheService {
   getSessionMirror(
     refreshTokenHash: string,
   ): Promise<SessionMirrorRecord | null> {
-    return this.cache.get<SessionMirrorRecord>(this.sessionKey(refreshTokenHash));
+    return this.cache.get<SessionMirrorRecord>(
+      this.sessionKey(refreshTokenHash),
+    );
   }
 
   async deleteSessionMirror(refreshTokenHash: string): Promise<void> {
@@ -187,7 +203,10 @@ export class AuthCacheService {
   ): string {
     return `otp:${channel}:${userId}:${purpose}`;
   }
-  private otpThrottleKey(channel: 'email' | 'sms', destination: string): string {
+  private otpThrottleKey(
+    channel: 'email' | 'sms',
+    destination: string,
+  ): string {
     return `otp:throttle:${channel}:${destination}`;
   }
   private passwordResetKey(tokenHash: string): string {

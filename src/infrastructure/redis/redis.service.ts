@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CachePort } from '@/infrastructure/redis/redis.types';
 import { RedisAdapter } from '@/infrastructure/redis/redis.adapter';
 

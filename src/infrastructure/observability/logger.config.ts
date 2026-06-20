@@ -65,7 +65,9 @@ export const buildLoggerOptions = (config: LoggerConfigSlice): Params => {
         service: serviceName,
       }),
       serializers: {
-        req: (req: IncomingMessage & { id?: string; raw?: IncomingMessage }) => ({
+        req: (
+          req: IncomingMessage & { id?: string; raw?: IncomingMessage },
+        ) => ({
           id: req.id,
           method: req.method,
           url: req.url,

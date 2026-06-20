@@ -17,7 +17,7 @@ type ErrorResponseBody = {
   data: null;
 };
 
-const PRODUCTION_GENERIC_5XX = locals.error.internal_server_error as string;
+const PRODUCTION_GENERIC_5XX = locals.error.internal_server_error;
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

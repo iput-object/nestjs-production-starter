@@ -1,7 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-} from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthProvider } from '@prisma-client';
 import { PrismaService } from '@/database/prisma.service';
@@ -9,7 +6,10 @@ import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import type { RegisterDto } from '@/core/auth/dto/register.dto';
-import type { AuthTokens, RequestContext } from '@/core/auth/types/auth-tokens.type';
+import type {
+  AuthTokens,
+  RequestContext,
+} from '@/core/auth/types/auth-tokens.type';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -22,7 +22,10 @@ export class RegisterService {
     private readonly tokens: TokenService,
   ) {}
 
-  async register(dto: RegisterDto, context: RequestContext): Promise<AuthTokens> {
+  async register(
+    dto: RegisterDto,
+    context: RequestContext,
+  ): Promise<AuthTokens> {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('Email already registered');
@@ -62,5 +65,3 @@ export class RegisterService {
     return this.tokens.issue(user.id, context);
   }
 }
-
-

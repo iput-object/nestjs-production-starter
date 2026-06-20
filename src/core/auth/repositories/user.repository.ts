@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  AuthProvider,
-  Role,
-  User,
-  UserStatus,
-} from '@prisma-client';
+import type { AuthProvider, Role, User, UserStatus } from '@prisma-client';
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 

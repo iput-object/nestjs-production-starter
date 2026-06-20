@@ -1,8 +1,8 @@
 {
-  "resource_created_successfully": "Resource created successfully",
+  "resource_created_successfully": "Created",
   "no_content": "No content",
-  "data_fetched_successfully": "Data fetched successfully",
-  "request_completed_successfully": "Request completed successfully",
-  "resource_updated_successfully": "Resource updated successfully",
-  "resource_deleted_successfully": "Resource deleted successfully"
+  "data_fetched_successfully": "Success",
+  "request_completed_successfully": "Success",
+  "resource_updated_successfully": "Updated",
+  "resource_deleted_successfully": "Deleted"
 }

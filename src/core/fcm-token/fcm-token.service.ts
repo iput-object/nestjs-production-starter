@@ -22,7 +22,10 @@ export class FcmTokenService {
     private readonly cache: CachePort,
   ) {}
 
-  async registerToken(payload: RegisterFcmTokenDto, userId: string): Promise<{
+  async registerToken(
+    payload: RegisterFcmTokenDto,
+    userId: string,
+  ): Promise<{
     message: string;
     data: StoredFcmToken;
   }> {
@@ -61,7 +64,9 @@ export class FcmTokenService {
     }
 
     await this.cache.del(this.buildTokenKey(payload.token));
-    await this.cache.del(this.buildUserTokenKey(existing.userId, payload.token));
+    await this.cache.del(
+      this.buildUserTokenKey(existing.userId, payload.token),
+    );
 
     return {
       message: 'FCM token removed successfully',

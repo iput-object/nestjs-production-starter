@@ -43,7 +43,9 @@ export class ObservabilityModule
 
   onModuleInit(): void {
     const app = this.configService.get('app', { infer: true });
-    const observability = this.configService.get('observability', { infer: true });
+    const observability = this.configService.get('observability', {
+      infer: true,
+    });
 
     if (
       app.nodeEnv === 'production' &&

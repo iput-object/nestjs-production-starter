@@ -14,6 +14,7 @@ import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.reposit
 import { RegisterService } from '@/core/auth/services/register.service';
 import { LoginService } from '@/core/auth/services/login.service';
 import { TokenService } from '@/core/auth/services/token.service';
+import { AuthCookieService } from '@/core/auth/services/auth-cookie.service';
 import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { PasswordResetService } from '@/core/auth/services/password-reset.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
@@ -55,6 +56,7 @@ import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
     RegisterService,
     LoginService,
     TokenService,
+    AuthCookieService,
     EmailVerifyService,
     PasswordResetService,
     PasswordChangeService,

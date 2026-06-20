@@ -2,10 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createTransport, Transporter } from 'nodemailer';
 import { Config } from '@/configs/environment.config';
-import {
-  MailerPort,
-  MailMessage,
-} from '@/infrastructure/mailer/mailer.types';
+import { MailerPort, MailMessage } from '@/infrastructure/mailer/mailer.types';
 
 @Injectable()
 export class MailerService implements MailerPort, OnModuleDestroy {

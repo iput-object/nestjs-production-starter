@@ -6,10 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  type TwoFactorMethod,
-  type User,
-} from '@prisma-client';
+import { type TwoFactorMethod, type User } from '@prisma-client';
 import { TwoFactorMethodType } from '@prisma-client';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';

@@ -6,7 +6,10 @@ import { Config } from '@/configs/environment.config';
 import { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
   constructor(configService: ConfigService<Config>) {
     const auth = configService.get<Config['auth']>('auth');
     super({

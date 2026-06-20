@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Config } from '@/configs/environment.config';
@@ -59,6 +59,25 @@ export class TokenService {
       access: { token: accessToken, expiresAt: accessExpiresAt },
       refresh: { token: refreshToken, expiresAt: refreshExpiresAt },
     };
+  }
+
+  async refresh(
+    presentedRefreshToken: string,
+    context: RequestContext = {},
+  ): Promise<AuthTokens> {
+    const auth = this.config.get<Config['auth']>('auth')!;
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwt.verifyAsync<JwtPayload>(presentedRefreshToken, {
+        secret: auth.jwtRefreshSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token required');
+    }
+    if (payload.tokenType !== 'refresh') {
+      throw new UnauthorizedException('Refresh token required');
+    }
+    return this.rotate(payload.sub, presentedRefreshToken, context);
   }
 
   async rotate(

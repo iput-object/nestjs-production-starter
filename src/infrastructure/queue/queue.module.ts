@@ -2,10 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/configs/environment.config';
-import {
-  MAIL_QUEUE,
-  SMS_QUEUE,
-} from '@/infrastructure/queue/queue.constants';
+import { MAIL_QUEUE, SMS_QUEUE } from '@/infrastructure/queue/queue.constants';
 
 @Global()
 @Module({
