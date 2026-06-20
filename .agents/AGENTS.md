@@ -45,7 +45,7 @@ Part B rules grouped by category. Each links to the inline anchor below:
 
 ## 1. Project layout (HARD rule)
 
-Backing principles: [R2](#r2), [R3](#r3), [R1](#r1). The general "feature modules" rule recommends `src/<feature>/`; we use `src/core/<feature>/` plus `src/infrastructure/<concern>/` to separate business features from shared plumbing. Apply this layout, not the flat one.
+Backing principles: [R2](#r2), [R3](#r3), [R1](#r1). The general "feature modules" rule recommends `src/<feature>/`; we use `src/core/<feature>/` (foundational features already here, e.g. auth) and `src/modules/<feature>/` (new business features) plus `src/infrastructure/<concern>/` to separate business features from shared plumbing. Apply this layout, not the flat one.
 
 ```
 src/
@@ -55,11 +55,12 @@ src/
   common/                       # cross-cutting utilities (crypto, pagination, utils)
   database/                     # prisma.service.ts, prisma.module.ts, generated client
   infrastructure/<concern>/     # observability, redis, queue, mailer, sms — shared plumbing
-  core/<feature>/               # business features (auth, health, fcm-token, ...)
+  core/<feature>/               # foundational features already here (auth, fcm-token, health)
+  modules/<feature>/            # new business features go here
   locals/                       # localized message strings
 ```
 
-Inside `src/core/<feature>/`:
+Inside a feature folder (same shape under `src/core/<feature>/` and `src/modules/<feature>/`):
 
 ```
 <feature>.module.ts
@@ -73,7 +74,7 @@ decorators/       # route/param decorators
 types/            # shared types for this feature
 ```
 
-- New business features go under `src/core/`. Shared plumbing goes under `src/infrastructure/`.
+- New business features go under `src/modules/`. Auth and the foundational features already present stay under `src/core/` — don't move them. Shared plumbing goes under `src/infrastructure/`.
 - A feature module imports what it needs and only re-exports what other features actually consume (see `AuthModule` exports — it exports repositories so other modules can read auth data without duplicating providers).
 - **Never** put providers or controllers directly in `app.module.ts`.
 
