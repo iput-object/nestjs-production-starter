@@ -1,142 +1,160 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS Production Starter
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust, production-ready NestJS boilerplate designed for scaling backend services. It comes pre-configured with everything you need: PostgreSQL, Prisma, background jobs, JWT/2FA authentication, strict environment validation, and enterprise-grade observability.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Framework**: [NestJS](https://nestjs.com/) (v11) using TypeScript.
+- **Database**: [Prisma ORM](https://www.prisma.io/) with PostgreSQL adapter (`@prisma/adapter-pg`).
+- **Authentication**: Complete JWT-based auth flow (`@nestjs/passport`), including Two-Factor Authentication (OTP, QR Codes) and Google OAuth integration.
+- **Validation**: Strict DTO validation with `class-validator` and `class-transformer`.
+- **Environment Configuration**: Strongly typed environment variables using `zod` and `@nestjs/config`.
+- **Observability**: Full [OpenTelemetry](https://opentelemetry.io/) auto-instrumentation for traces and metrics. Structured JSON logging via `nestjs-pino` with OpenTelemetry transport.
+- **Background Jobs & Queues**: High-performance background queues using [BullMQ](https://docs.nestjs.com/techniques/queues) and Redis.
+- **Multi-Instance Ready**: Designed for horizontal scaling. WebSockets use `RedisIoAdapter` to sync events across nodes, and BullMQ uses Redis to distribute jobs seamlessly.
+- **Security**: Rate limiting (`@nestjs/throttler`) and secure HTTP headers (`helmet`).
+- **Notifications**: Pre-configured abstractions for Mail (`nodemailer`) and SMS (`twilio`).
+- **WebSockets**: Real-time communication ready with `@nestjs/platform-socket.io` and Redis adapter.
+- **API Documentation**: Auto-generated OpenAPI (Swagger) specifications via `@nestjs/swagger`.
+- **Testing**: Pre-configured for Unit Tests (Jest) and E2E Tests (Supertest).
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Project Architecture
 
-## Project setup
+This project strictly follows a feature-module architecture and separation of concerns:
 
-```bash
-$ pnpm install
+```text
+src/
+  main.ts                       # App bootstrap & auto-instrumentation
+  app.module.ts                 # Root module (imports feature modules)
+  configs/                      # Env config (Zod), policies, Swagger
+  common/                       # Cross-cutting utilities (crypto, pagination, etc.)
+  database/                     # Prisma module and service
+  infrastructure/               # Shared plumbing (observability, Redis, queues, mailer)
+  core/                         # Foundational features (auth, health, fcm)
+  modules/                      # Business feature modules (your new features go here)
+  locals/                       # Localized strings for error messages & notifications
 ```
 
-## Compile and run the project
+### Key Design Patterns
 
+- **Repository Pattern**: All database calls go through `repositories/` returning Prisma types directly. Services handle business logic, not raw database queries.
+- **Thin Controllers**: Controllers are strictly for routing. They bind a route, accept a validated DTO, call a service, and return a result.
+- **Dependency Injection**: Strict use of Constructor Injection to maximize testability.
+- **Global Error Handling**: Custom exception filters ensure all API errors have a unified, standard JSON response structure.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (>= 20)
+- [pnpm](https://pnpm.io/) (preferred package manager)
+- Docker & Docker Compose (for local services)
+
+### Installation
+
+1. **Install dependencies:**
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm install
 ```
 
-## Run tests
-
+2. **Setup Environment Variables:**
+Copy `.env.example` to `.env` and fill in the required values.
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+cp .env.example .env
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+3. **Start Local Infrastructure:**
+Spin up the required background services (PostgreSQL, Redis, etc.).
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+docker compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+4. **Run Database Migrations:**
+Since this is a clean starter template, no initial migrations are included. You must create the first migration yourself based on the existing Prisma schema:
+```bash
+pnpm prisma migrate dev --name init
+```
 
-## Resources
+### Running the Application
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# Development mode
+pnpm run start
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Watch mode (recommended for local dev)
+pnpm run start:dev
+
+# Production mode
+pnpm run build
+pnpm run start:prod
+```
+
+## Authentication (Cookies vs. Bearer Tokens)
+
+This starter provides a highly flexible JWT strategy out of the box. It implements a "One door, two keys" approach for both receiving and issuing tokens.
+
+### Receiving Tokens (Incoming Requests)
+The `JwtStrategy` automatically extracts the access token from either:
+1. **Authorization Header (Bearer Token)**: Ideal for mobile apps (`Authorization: Bearer <token>`).
+2. **HTTP-Only Cookies**: Ideal for web frontends to protect against XSS attacks.
+
+### Issuing Tokens (Login/Register Responses)
+To tell the API *how* you want to receive your tokens after a successful login or registration, you use the **`X-Auth-Transport`** header:
+- **`X-Auth-Transport: bearer`**: The API will return the access and refresh tokens directly in the JSON response body. (Use this for mobile apps).
+- **Omit the header**: The API will automatically set the tokens securely in HTTP-Only cookies and return no tokens in the body. (Use this for web apps).
+
+You do not need to configure separate endpoints for web and mobile clients; the API intelligently adapts based on the `X-Auth-Transport` header during login, and accepts both formats seamlessly on protected routes.
+
+## API Documentation (Swagger)
+
+This template automatically generates and serves OpenAPI specifications, **but only in non-production environments** (to keep your API secure in production).
+
+- **Swagger UI**: Accessible at `http://localhost:3000/api/docs` while the server is running (when `NODE_ENV !== 'production'`).
+- **Auto-Generated JSON**: Every time the application starts in development, it automatically saves the latest `swagger.json` file to the `docs/` folder in the project root. This makes it incredibly easy for anyone on your team to grab the spec to generate frontend API clients or import it directly into Postman/Insomnia.
 
 ## Observability (OpenTelemetry + Pino)
 
-This template ships OpenTelemetry instrumentation under `src/infrastructure/observability/`. Traces and metrics are exported via OTLP HTTP, and logs are emitted as structured JSON via Pino with the active OTel `trace_id` / `span_id` for log-trace correlation.
+This template ships OpenTelemetry instrumentation out-of-the-box. Traces and metrics are exported via OTLP HTTP, and logs are emitted as structured JSON via Pino with the active OTel `trace_id` / `span_id` for perfect log-trace correlation.
 
-### Run local stack
+- **Traces**: Auto-instrumentation covers HTTP, NestJS, Prisma, Redis, and PostgreSQL.
+- **Logs**: In production, logs go to stdout (JSON) and directly to OTEL. In development, `pino-pretty` formats the logs nicely.
+- **Metrics**: Ready for Prometheus / custom exporters via `MetricsService`.
+
+> **Note**: `src/main.ts` must keep `@/infrastructure/observability/tracing.bootstrap` as the very first import so auto-instrumentation patches load correctly.
+
+## Testing
+
+Tests are written using Jest and E2E tests utilize Supertest.
 
 ```bash
-docker compose up --build -d
-docker compose logs -f app
-docker compose down
+# Run unit tests
+pnpm run test
+
+# Run e2e tests
+pnpm run test:e2e
+
+# Run tests with coverage
+pnpm run test:cov
 ```
 
-The default compose stack includes:
+## Adding New Features
 
-- **app** (Nest server, port 3000)
-- **postgres** (port 5432, volume `postgres-data`)
-- **redis** (port 6379, volume `redis-data`)
-- Observability backend is external (run OTEL collector / APM on a separate machine).
+When adding a new feature, follow the modular structure:
+1. Create a new folder under `src/modules/<feature-name>`.
+2. Generate the necessary files: `<feature>.module.ts`, `<feature>.controller.ts`, `services/<feature>.service.ts`, `repositories/<feature>.repository.ts`, etc.
+3. Keep business logic in **Services**, and database interactions in **Repositories**.
+4. Import your new module into `src/app.module.ts`.
 
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` to your remote collector URL (example: `http://your-otel-collector-host:4318`).
+> **Rule of Thumb**: Never put providers or controllers directly in `app.module.ts`. Keep them scoped to their respective feature modules.
 
-### Environment variables
+## AI & Vibe Coding
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `APP_NAME` | `nest-prisma-template` | OpenTelemetry `service.name` and Pino `service` field. |
-| `SERVICE_VERSION` | `package.json#version` | Optional OpenTelemetry `service.version` override. |
-| `NODE_ENV` | `development` | Sets `deployment.environment.name` and dev log formatting. |
-| `LOG_LEVEL` | `info` | Pino level (`fatal` \| `error` \| `warn` \| `info` \| `debug` \| `trace` \| `silent`). |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://your-otel-collector-host:4318` | Base URL for OTLP HTTP exporter (`/v1/traces` and `/v1/metrics` are appended automatically). |
-| `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL` | `http/protobuf` | Protocol used by `pino-opentelemetry-transport` for log export. |
-| `OTEL_LOGS_ENABLED` | `true` | Enables direct OTEL log export in production (stdout JSON remains enabled). |
+If you use AI coding assistants (like Cursor, Copilot, Cline, or Antigravity) to "vibe code" and rapidly generate new features, you **must always mention or include the `.agents/AGENTS.md` file in your prompt context.**
 
-### Telemetry flow
+This repository ships with a comprehensive `.agents/AGENTS.md` file containing 40 strict NestJS architectural rules, patterns, and conventions specific to this boilerplate. By feeding this file to your AI, you ensure that the generated code flawlessly matches the existing Repository Patterns, strict DI rules, and DTO validations without hallucinating random or outdated NestJS approaches.
 
-- **Traces** — Auto-instrumentation covers HTTP, Express, NestJS, Prisma, Redis, and pg.
-- **Metrics** — `MetricsService` and `MetricsInterceptor` emit request counters/error counters/duration histograms.
-- **Logs** — in production, logs go to both stdout JSON and OTEL via `pino-opentelemetry-transport`; in development, `pino-pretty` is used.
-- **Errors** — `AllExceptionsFilter` records exceptions on the active span and returns normalized API errors.
+## Contributing
 
-### Boot-order caveat
+We are completely open to contributions! If you see any improvements that can be made—whether it's optimizing the architecture, fixing a bug, updating a package, or adding a cool new feature that belongs in a production template—please feel free to open an issue or submit a Pull Request.
 
-`src/main.ts` must keep `@/infrastructure/observability/tracing.bootstrap` as the first import so auto-instrumentation patches load correctly.
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Let's build the best NestJS starter together!
