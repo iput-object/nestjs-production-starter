@@ -5,7 +5,7 @@ import {
   type ArgumentsHost,
   type ExceptionFilter,
 } from '@nestjs/common';
-import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
+import { PinoLogger } from 'nestjs-pino';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import type { Request, Response } from 'express';
 import locals from '@/locals';
@@ -21,10 +21,9 @@ const PRODUCTION_GENERIC_5XX = locals.error.internal_server_error;
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  constructor(
-    @InjectPinoLogger(AllExceptionsFilter.name)
-    private readonly logger: PinoLogger,
-  ) {}
+  constructor(private readonly logger: PinoLogger) {
+    this.logger.setContext(AllExceptionsFilter.name);
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     if (host.getType() !== 'http') {
