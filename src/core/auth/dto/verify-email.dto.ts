@@ -1,18 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
-
-export class RequestEmailVerificationDto {
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
-  @MaxLength(320)
-  email!: string;
-}
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class ConfirmEmailVerificationDto {
   @IsString()
@@ -37,10 +24,4 @@ export class ResendEmailVerificationDto {
   @IsEmail()
   @MaxLength(320)
   email!: string;
-
-  @IsOptional()
-  sendLink?: boolean;
-
-  @IsOptional()
-  sendOtp?: boolean;
 }

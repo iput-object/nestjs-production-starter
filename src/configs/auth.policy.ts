@@ -9,15 +9,19 @@
 export const AUTH_POLICY = Object.freeze({
   loginMaxFails: 10,
   loginLockoutTtlSeconds: 900,
-  passwordResetTtlSeconds: 1800,
-  emailVerifyTtlSeconds: 86_400,
-  twoFactorChallengeTtlSeconds: 300,
+  passwordResetTtlSeconds: 180,
+  resetRequestTtlSeconds: 600,
+  emailVerifyTtlSeconds: 180,
+  twoFactorChallengeTtlSeconds: 180,
 });
 
 export const OTP_POLICY = Object.freeze({
   length: 6,
   maxAttempts: 5,
   resendCooldownSeconds: 60,
-  emailTtlSeconds: 600,
-  smsTtlSeconds: 300,
+  emailTtlSeconds: 180,
+  smsTtlSeconds: 180,
+  // Per-destination send ceiling within a rolling window (abuse / enumeration).
+  maxSendsPerWindow: 5,
+  sendThrottleWindowSeconds: 3600,
 });

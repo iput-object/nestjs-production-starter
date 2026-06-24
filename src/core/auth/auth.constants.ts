@@ -10,3 +10,7 @@ export const REFRESH_TOKEN_COOKIE_PATH = '/api/v1/auth';
 // httpOnly cookie and no body tokens, so the web token never reaches JS.
 export const AUTH_TRANSPORT_HEADER = 'X-Auth-Transport';
 export const AUTH_TRANSPORT_BEARER = 'bearer';
+// OTP CONSTANTS
+export const AUTH_OTP_SALT = 6;
+export const AUTH_OTP_CODE_LEN = 6;
+export const AUTH_OTP_TOKEN_LEN = 32; // Byte

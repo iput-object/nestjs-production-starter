@@ -1,11 +1,24 @@
 import { Transform } from 'class-transformer';
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import type { ResetChannel } from '@/core/auth/services/auth-cache.service';
+
+export class ForgotPasswordChannelsDto {
+  // Email or phone — the service resolves which and lists reset channels.
+  @Transform(({ value }: { value: string }) => value?.trim())
+  @IsString()
+  @MinLength(3)
+  @MaxLength(320)
+  identifier!: string;
+}
+
+export class SendResetOtpDto {
+  @IsString()
+  @MinLength(20)
+  requestId!: string;
+
+  @IsIn(['email', 'sms'])
+  channel!: ResetChannel;
+}
 
 export class ResetPasswordDto {
   @IsString()
@@ -19,10 +32,9 @@ export class ResetPasswordDto {
 }
 
 export class ResetPasswordByOtpDto {
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
-  @MaxLength(320)
-  email!: string;
+  @IsString()
+  @MinLength(20)
+  requestId!: string;
 
   @IsString()
   @MinLength(4)
@@ -33,17 +45,4 @@ export class ResetPasswordByOtpDto {
   @MinLength(8)
   @MaxLength(128)
   password!: string;
-}
-
-export class ForgotPasswordRequestOptionsDto {
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
-  @MaxLength(320)
-  email!: string;
-
-  @IsOptional()
-  sendLink?: boolean;
-
-  @IsOptional()
-  sendOtp?: boolean;
 }

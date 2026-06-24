@@ -15,8 +15,34 @@ export interface OtpRecord {
   sentAt: number;
 }
 
-export interface PasswordResetRecord {
+// Unified challenge: one record carries both the OTP code hash and the magic
+// link token hash, so consuming either method deletes the single record and
+// kills the other. A reverse index maps a link's tokenHash back to its session.
+export interface OtpSessionRecord {
   userId: string;
+  purpose: OtpPurpose;
+  channel: 'email' | 'sms';
+  destination: string;
+  codeHash?: string;
+  tokenHash?: string;
+  attempts: number;
+  sentAt: number;
+  expiresAt: number;
+}
+
+export interface OtpTokenIndexRecord {
+  userId: string;
+  purpose: OtpPurpose;
+}
+
+export type ResetChannel = 'email' | 'sms';
+
+// Holds the resolved user + the channels they may reset through, so the
+// follow-up send/verify calls reference an opaque id instead of re-collecting
+// (and re-disclosing) the raw email/phone.
+export interface ResetRequestRecord {
+  userId: string;
+  channels: ResetChannel[];
 }
 
 export interface EmailVerifyRecord {
@@ -71,6 +97,51 @@ export class AuthCacheService {
     await this.cache.del(this.otpKey(channel, userId, purpose));
   }
 
+  // ---------- Unified OTP session (code + link in one record) ----------
+  async setOtpSession(
+    userId: string,
+    purpose: OtpPurpose,
+    record: OtpSessionRecord,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.cache.set(
+      this.otpSessionKey(userId, purpose),
+      record,
+      ttlSeconds,
+    );
+  }
+
+  getOtpSession(
+    userId: string,
+    purpose: OtpPurpose,
+  ): Promise<OtpSessionRecord | null> {
+    return this.cache.get<OtpSessionRecord>(
+      this.otpSessionKey(userId, purpose),
+    );
+  }
+
+  async deleteOtpSession(userId: string, purpose: OtpPurpose): Promise<void> {
+    await this.cache.del(this.otpSessionKey(userId, purpose));
+  }
+
+  async setOtpTokenIndex(
+    tokenHash: string,
+    record: OtpTokenIndexRecord,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.cache.set(this.otpTokenIndexKey(tokenHash), record, ttlSeconds);
+  }
+
+  getOtpTokenIndex(tokenHash: string): Promise<OtpTokenIndexRecord | null> {
+    return this.cache.get<OtpTokenIndexRecord>(
+      this.otpTokenIndexKey(tokenHash),
+    );
+  }
+
+  async deleteOtpTokenIndex(tokenHash: string): Promise<void> {
+    await this.cache.del(this.otpTokenIndexKey(tokenHash));
+  }
+
   // ---------- OTP throttle (per destination) ----------
   async getOtpThrottle(
     channel: 'email' | 'sms',
@@ -95,23 +166,21 @@ export class AuthCacheService {
     );
   }
 
-  // ---------- Password reset ----------
-  async setPasswordReset(
-    tokenHash: string,
-    record: PasswordResetRecord,
+  // ---------- Password reset request (channel discovery) ----------
+  async setResetRequest(
+    requestId: string,
+    record: ResetRequestRecord,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.cache.set(this.passwordResetKey(tokenHash), record, ttlSeconds);
+    await this.cache.set(this.resetRequestKey(requestId), record, ttlSeconds);
   }
 
-  getPasswordReset(tokenHash: string): Promise<PasswordResetRecord | null> {
-    return this.cache.get<PasswordResetRecord>(
-      this.passwordResetKey(tokenHash),
-    );
+  getResetRequest(requestId: string): Promise<ResetRequestRecord | null> {
+    return this.cache.get<ResetRequestRecord>(this.resetRequestKey(requestId));
   }
 
-  async deletePasswordReset(tokenHash: string): Promise<void> {
-    await this.cache.del(this.passwordResetKey(tokenHash));
+  async deleteResetRequest(requestId: string): Promise<void> {
+    await this.cache.del(this.resetRequestKey(requestId));
   }
 
   // ---------- Email verify ----------
@@ -203,14 +272,20 @@ export class AuthCacheService {
   ): string {
     return `otp:${channel}:${userId}:${purpose}`;
   }
+  private otpSessionKey(userId: string, purpose: OtpPurpose): string {
+    return `otp:session:${userId}:${purpose}`;
+  }
+  private otpTokenIndexKey(tokenHash: string): string {
+    return `otp:token:${tokenHash}`;
+  }
   private otpThrottleKey(
     channel: 'email' | 'sms',
     destination: string,
   ): string {
     return `otp:throttle:${channel}:${destination}`;
   }
-  private passwordResetKey(tokenHash: string): string {
-    return `pwd-reset:${tokenHash}`;
+  private resetRequestKey(requestId: string): string {
+    return `pwd-reset-req:${requestId}`;
   }
   private emailVerifyKey(tokenHash: string): string {
     return `email-verify:${tokenHash}`;

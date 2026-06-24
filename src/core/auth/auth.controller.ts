@@ -14,14 +14,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthControllerHelper } from '@/core/auth/helpers/auth-controller.helper';
 import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
-import {
-  AUTH_TRANSPORT_BEARER,
-  AUTH_TRANSPORT_HEADER,
-  REFRESH_TOKEN_COOKIE,
-} from '@/core/auth/auth.constants';
+import { AUTH_TRANSPORT_HEADER } from '@/core/auth/auth.constants';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
@@ -35,15 +32,15 @@ import {
   EnrollEmailOtpDto,
   EnrollSmsOtpDto,
 } from '@/core/auth/dto/enroll-2fa.dto';
-import { ForgetPasswordDto } from '@/core/auth/dto/forget-password.dto';
 import { SetPasswordDto } from '@/core/auth/dto/set-password.dto';
 import { LoginDto } from '@/core/auth/dto/login.dto';
 import { RefreshDto } from '@/core/auth/dto/refresh.dto';
 import { RegisterDto } from '@/core/auth/dto/register.dto';
 import {
-  ForgotPasswordRequestOptionsDto,
+  ForgotPasswordChannelsDto,
   ResetPasswordByOtpDto,
   ResetPasswordDto,
+  SendResetOtpDto,
 } from '@/core/auth/dto/reset-password.dto';
 import {
   TwoFactorChallengeSendDto,
@@ -59,7 +56,10 @@ import { ChangeContactService } from '@/core/auth/services/change-contact.servic
 import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { LoginService } from '@/core/auth/services/login.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
-import { PasswordResetService } from '@/core/auth/services/password-reset.service';
+import {
+  PasswordResetService,
+  ResetChannelsResult,
+} from '@/core/auth/services/password-reset.service';
 import { RegisterService } from '@/core/auth/services/register.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
@@ -101,8 +101,15 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.register.register(dto, this.helper.requestContext(req));
-    const body = this.helper.deliverTokens(res, tokens, this.helper.wantsBearer(req));
+    const tokens = await this.register.register(
+      dto,
+      this.helper.requestContext(req),
+    );
+    const body = this.helper.deliverTokens(
+      res,
+      tokens,
+      this.helper.wantsBearer(req),
+    );
     return {
       message: locals.auth.account_created_successfully,
       ...(body && { root: body }),
@@ -111,6 +118,7 @@ export class AuthController {
 
   /** Log in with credentials */
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in with credentials' })
   @ApiTransportHeader()
   async loginAccount(
@@ -139,6 +147,7 @@ export class AuthController {
 
   /** Refresh access and refresh tokens */
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Refresh access and refresh tokens',
     description:
@@ -192,71 +201,82 @@ export class AuthController {
 
   /** Verify email with a token link */
   @Post('email/verify')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email with a token link' })
-  confirmEmail(@Body() dto: ConfirmEmailVerificationDto) {
-    return this.emailVerify.confirm(dto.token);
+  async confirmEmail(
+    @Body() dto: ConfirmEmailVerificationDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.emailVerify.confirm(dto.token);
+    return { message: locals.auth.email_verified };
   }
 
   /** Verify email with an OTP code */
   @Post('email/verify/otp')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email with an OTP code' })
-  confirmEmailByOtp(@Body() dto: ConfirmEmailVerificationOtpDto) {
-    return this.emailVerify.confirmOtp(dto.email, dto.code);
+  async confirmEmailByOtp(
+    @Body() dto: ConfirmEmailVerificationOtpDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.emailVerify.confirmOtp(dto.email, dto.code);
+    return { message: locals.auth.email_verified };
   }
 
   /** Resend email verification link/OTP */
   @Post('email/verify/resend')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend email verification link/OTP' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async resendEmailVerification(
     @Body() dto: ResendEmailVerificationDto,
-  ): Promise<void> {
-    const sendLink = dto.sendLink ?? true;
-    const sendOtp = dto.sendOtp ?? true;
-    const user = await this.users.findByEmail(dto.email);
-    if (user && !user.isEmailVerified) {
-      if (sendLink) {
-        await this.emailVerify.issueAndSend(user.id, dto.email);
-      }
-      if (sendOtp) {
-        await this.emailVerify.issueOtpByEmail(dto.email);
-      }
-    }
+  ): Promise<ServiceResponse<void>> {
+    await this.emailVerify.issueByEmail(dto.email);
+    return { message: locals.auth.email_verification_sent };
   }
 
-  /** Request a password reset (link and OTP) */
-  @Post('password/forgot')
-  @ApiOperation({ summary: 'Request a password reset (link and OTP)' })
-  async forgotPassword(@Body() dto: ForgetPasswordDto): Promise<void> {
-    await this.passwordReset.request(dto.email, {
-      sendLink: true,
-      sendOtp: true,
-    });
+  /** List the channels an account can reset through (email/SMS) */
+  @Post('password/forgot/channels')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'List password reset channels for an account' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async forgotPasswordChannels(
+    @Body() dto: ForgotPasswordChannelsDto,
+  ): Promise<ServiceResponse<ResetChannelsResult>> {
+    const result = await this.passwordReset.discoverChannels(dto.identifier);
+    return { message: locals.auth.password_reset_channels, data: result };
   }
 
-  /** Request a password reset with delivery options */
-  @Post('password/forgot/request')
-  @ApiOperation({ summary: 'Request a password reset with delivery options' })
-  async forgotPasswordWithOptions(
-    @Body() dto: ForgotPasswordRequestOptionsDto,
-  ): Promise<void> {
-    await this.passwordReset.request(dto.email, {
-      sendLink: dto.sendLink ?? true,
-      sendOtp: dto.sendOtp ?? true,
-    });
+  /** Send a reset code on the chosen channel */
+  @Post('password/forgot/send')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a reset code on the chosen channel' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async sendResetOtp(
+    @Body() dto: SendResetOtpDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.passwordReset.sendOtp(dto.requestId, dto.channel);
+    return { message: locals.auth.password_reset_code_sent };
   }
 
   /** Reset password with a token */
   @Post('password/reset')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with a token' })
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<ServiceResponse<void>> {
     await this.passwordReset.reset(dto.token, dto.password);
+    return { message: locals.auth.password_reset_successful };
   }
 
   /** Reset password with an OTP code */
   @Post('password/reset/otp')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with an OTP code' })
-  async resetPasswordByOtp(@Body() dto: ResetPasswordByOtpDto): Promise<void> {
-    await this.passwordReset.resetByOtp(dto.email, dto.code, dto.password);
+  async resetPasswordByOtp(
+    @Body() dto: ResetPasswordByOtpDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.passwordReset.resetByOtp(dto.requestId, dto.code, dto.password);
+    return { message: locals.auth.password_reset_successful };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -266,41 +286,50 @@ export class AuthController {
   async changePassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: ChangePasswordDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     await this.passwordChange.change(
       userId,
       dto.currentPassword,
       dto.newPassword,
     );
+    return { message: locals.auth.password_changed };
   }
 
   @UseGuards(JwtAuthGuard)
   /** Set a password for an account without one */
   @Post('password/set')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set a password for an account without one' })
   async setPassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: SetPasswordDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     await this.passwordChange.set(userId, dto.password);
+    return { message: locals.auth.password_set };
   }
 
   @UseGuards(JwtAuthGuard)
   /** Request an email address change */
   @Post('email/change/request')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request an email address change' })
   async requestEmailChange(
     @CurrentUser('sub') userId: string,
     @Body() dto: RequestEmailChangeDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     await this.changeContact.requestEmailChange(userId, dto.email);
+    return { message: locals.auth.email_change_requested };
   }
 
   /** Confirm an email address change */
   @Post('email/change/confirm')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm an email address change' })
-  async confirmEmailChange(@Body() dto: ConfirmEmailChangeDto) {
-    return this.changeContact.confirmEmailChange(dto.token);
+  async confirmEmailChange(
+    @Body() dto: ConfirmEmailChangeDto,
+  ): Promise<ServiceResponse<{ userId: string; email: string }>> {
+    const result = await this.changeContact.confirmEmailChange(dto.token);
+    return { message: locals.auth.email_changed, data: result };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -314,6 +343,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   /** Begin TOTP authenticator enrollment */
   @Post('2fa/enroll/totp')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
   async enrollTotp(@CurrentUser('sub') userId: string) {
     const user = await this.users.findById(userId);
@@ -324,6 +354,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   /** Confirm TOTP enrollment with a code */
   @Post('2fa/enroll/totp/confirm')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm TOTP enrollment with a code' })
   async confirmTotp(
     @CurrentUser('sub') userId: string,
@@ -336,19 +367,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   /** Begin email OTP two-factor enrollment */
   @Post('2fa/enroll/email/request')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin email OTP two-factor enrollment' })
   async enrollEmailOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollEmailOtpDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
     await this.twoFactor.enrollEmailOtp(user, dto.email);
+    return { message: locals.auth.two_factor_code_sent };
   }
 
   @UseGuards(JwtAuthGuard)
   /** Confirm email OTP enrollment with a code */
   @Post('2fa/enroll/email/confirm')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm email OTP enrollment with a code' })
   async confirmEmailOtp(
     @CurrentUser('sub') userId: string,
@@ -361,19 +395,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   /** Begin SMS OTP two-factor enrollment */
   @Post('2fa/enroll/sms/request')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin SMS OTP two-factor enrollment' })
   async enrollSmsOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollSmsOtpDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
     await this.twoFactor.enrollSmsOtp(user, dto.phone);
+    return { message: locals.auth.two_factor_code_sent };
   }
 
   @UseGuards(JwtAuthGuard)
   /** Confirm SMS OTP enrollment with a code */
   @Post('2fa/enroll/sms/confirm')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm SMS OTP enrollment with a code' })
   async confirmSmsOtp(
     @CurrentUser('sub') userId: string,
@@ -390,8 +427,9 @@ export class AuthController {
   async disableTwoFactor(
     @CurrentUser('sub') userId: string,
     @Param('methodId') methodId: string,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     await this.twoFactor.disable(userId, methodId);
+    return { message: locals.auth.two_factor_disabled };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -405,6 +443,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   /** Regenerate backup codes */
   @Post('2fa/backup-codes/regenerate')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate backup codes' })
   regenerateBackupCodes(@CurrentUser('sub') userId: string) {
     return this.twoFactor.regenerateBackupCodes(userId);
@@ -412,15 +451,18 @@ export class AuthController {
 
   /** Send a two-factor challenge code */
   @Post('2fa/challenge/send')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send a two-factor challenge code' })
   async sendTwoFactorChallengeCode(
     @Body() dto: TwoFactorChallengeSendDto,
-  ): Promise<void> {
+  ): Promise<ServiceResponse<void>> {
     await this.twoFactor.sendChallengeCode(dto.challengeId, dto.type);
+    return { message: locals.auth.two_factor_code_sent };
   }
 
   /** Verify a two-factor challenge code */
   @Post('2fa/challenge/verify')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify a two-factor challenge code' })
   @ApiTransportHeader()
   async verifyTwoFactorChallenge(
@@ -434,7 +476,11 @@ export class AuthController {
       dto.code,
       this.helper.requestContext(req),
     );
-    const body = this.helper.deliverTokens(res, tokens, this.helper.wantsBearer(req));
+    const body = this.helper.deliverTokens(
+      res,
+      tokens,
+      this.helper.wantsBearer(req),
+    );
     return {
       message: locals.auth.logged_in_successfully,
       ...(body && { root: body }),

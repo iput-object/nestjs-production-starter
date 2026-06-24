@@ -50,14 +50,10 @@ export class RegisterService {
       return created;
     });
 
-    // Best-effort email verification dispatch — don't fail registration if mail breaks.
+    // Best-effort: one email carries both the verification link and the code.
+    // Don't fail registration if mail breaks.
     try {
       await this.emailVerify.issueAndSend(user.id, dto.email);
-    } catch {
-      // logged centrally by the mailer; swallow so registration still succeeds
-    }
-    try {
-      await this.emailVerify.issueOtpByEmail(dto.email);
     } catch {
       // logged centrally by the mailer; swallow so registration still succeeds
     }

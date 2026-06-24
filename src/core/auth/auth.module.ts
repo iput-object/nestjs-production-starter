@@ -5,6 +5,8 @@ import { PassportModule } from '@nestjs/passport';
 import { Config } from '@/configs/environment.config';
 import { AuthController } from '@/core/auth/auth.controller';
 import { AuthControllerHelper } from '@/core/auth/helpers/auth-controller.helper';
+import { OtpGeneratorHelper } from '@/core/auth/helpers/otp-generator.helper';
+import { AuthOtpTransporter } from '@/core/auth/transporters/auth-otp.transporter';
 import { JwtStrategy } from '@/core/auth/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from '@/core/auth/strategies/jwt-refresh.strategy';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
@@ -20,6 +22,7 @@ import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { PasswordResetService } from '@/core/auth/services/password-reset.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
 import { OtpService } from '@/core/auth/services/otp.service';
+import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import { ChangeContactService } from '@/core/auth/services/change-contact.service';
@@ -62,12 +65,15 @@ import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
     PasswordResetService,
     PasswordChangeService,
     OtpService,
+    OtpSessionService,
     TotpService,
     TwoFactorService,
     ChangeContactService,
     PhoneVerifyService,
     DevSecretLogger,
     AuthControllerHelper,
+    OtpGeneratorHelper,
+    AuthOtpTransporter,
   ],
   exports: [
     JwtModule,
