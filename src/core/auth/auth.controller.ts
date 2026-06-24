@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation } from '@nestjs/swagger';
+import { AuthControllerHelper } from '@/core/auth/helpers/auth-controller.helper';
 import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import {
@@ -63,7 +64,6 @@ import { RegisterService } from '@/core/auth/services/register.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
-import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 const ApiTransportHeader = () =>
@@ -89,36 +89,41 @@ export class AuthController {
     private readonly changeContact: ChangeContactService,
     private readonly twoFactor: TwoFactorService,
     private readonly totp: TotpService,
+    private readonly helper: AuthControllerHelper,
   ) {}
 
+  /** Register a new account */
   @Post('register')
+  @ApiOperation({ summary: 'Register a new account' })
   @ApiTransportHeader()
   async registerAccount(
     @Body() dto: RegisterDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.register.register(dto, this.requestContext(req));
-    const body = this.deliverTokens(res, tokens, this.wantsBearer(req));
+    const tokens = await this.register.register(dto, this.helper.requestContext(req));
+    const body = this.helper.deliverTokens(res, tokens, this.helper.wantsBearer(req));
     return {
       message: locals.auth.account_created_successfully,
       ...(body && { root: body }),
     };
   }
 
+  /** Log in with credentials */
   @Post('login')
+  @ApiOperation({ summary: 'Log in with credentials' })
   @ApiTransportHeader()
   async loginAccount(
     @Body() dto: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.login.login(dto, this.requestContext(req));
+    const result = await this.login.login(dto, this.helper.requestContext(req));
     if (result.kind === 'tokens') {
-      const body = this.deliverTokens(
+      const body = this.helper.deliverTokens(
         res,
         result.tokens,
-        this.wantsBearer(req),
+        this.helper.wantsBearer(req),
       );
       return {
         message: locals.auth.logged_in_successfully,
@@ -132,8 +137,10 @@ export class AuthController {
     };
   }
 
+  /** Refresh access and refresh tokens */
   @Post('refresh')
   @ApiOperation({
+    summary: 'Refresh access and refresh tokens',
     description:
       'Rotates tokens. Delivery follows the presented refresh token: sent in the ' +
       'body → new tokens in the body; sent via the refresh cookie → a new httpOnly ' +
@@ -150,22 +157,24 @@ export class AuthController {
     // a body-token response. Mobile presents its refresh token in the body.
     const fromBody = dto.refreshToken != null;
     const presentedRefreshToken =
-      dto.refreshToken ?? this.refreshTokenFromCookie(req);
+      dto.refreshToken ?? this.helper.refreshTokenFromCookie(req);
     if (!presentedRefreshToken) {
       throw new UnauthorizedException('Refresh token required');
     }
     const tokens = await this.tokens.refresh(
       presentedRefreshToken,
-      this.requestContext(req),
+      this.helper.requestContext(req),
     );
-    const body = this.deliverTokens(res, tokens, fromBody);
+    const body = this.helper.deliverTokens(res, tokens, fromBody);
     return {
       message: locals.auth.token_refreshed,
       ...(body && { root: body }),
     };
   }
 
+  /** Log out and revoke the refresh token */
   @Post('logout')
+  @ApiOperation({ summary: 'Log out and revoke the refresh token' })
   @HttpCode(HttpStatus.OK)
   async logout(
     @Body() dto: RefreshDto,
@@ -173,7 +182,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<ServiceResponse<void>> {
     const presentedRefreshToken =
-      dto.refreshToken ?? this.refreshTokenFromCookie(req);
+      dto.refreshToken ?? this.helper.refreshTokenFromCookie(req);
     if (presentedRefreshToken) {
       await this.tokens.revoke(presentedRefreshToken);
     }
@@ -181,17 +190,23 @@ export class AuthController {
     return { message: locals.auth.logged_out_successfully };
   }
 
+  /** Verify email with a token link */
   @Post('email/verify')
+  @ApiOperation({ summary: 'Verify email with a token link' })
   confirmEmail(@Body() dto: ConfirmEmailVerificationDto) {
     return this.emailVerify.confirm(dto.token);
   }
 
+  /** Verify email with an OTP code */
   @Post('email/verify/otp')
+  @ApiOperation({ summary: 'Verify email with an OTP code' })
   confirmEmailByOtp(@Body() dto: ConfirmEmailVerificationOtpDto) {
     return this.emailVerify.confirmOtp(dto.email, dto.code);
   }
 
+  /** Resend email verification link/OTP */
   @Post('email/verify/resend')
+  @ApiOperation({ summary: 'Resend email verification link/OTP' })
   async resendEmailVerification(
     @Body() dto: ResendEmailVerificationDto,
   ): Promise<void> {
@@ -208,7 +223,9 @@ export class AuthController {
     }
   }
 
+  /** Request a password reset (link and OTP) */
   @Post('password/forgot')
+  @ApiOperation({ summary: 'Request a password reset (link and OTP)' })
   async forgotPassword(@Body() dto: ForgetPasswordDto): Promise<void> {
     await this.passwordReset.request(dto.email, {
       sendLink: true,
@@ -216,7 +233,9 @@ export class AuthController {
     });
   }
 
+  /** Request a password reset with delivery options */
   @Post('password/forgot/request')
+  @ApiOperation({ summary: 'Request a password reset with delivery options' })
   async forgotPasswordWithOptions(
     @Body() dto: ForgotPasswordRequestOptionsDto,
   ): Promise<void> {
@@ -226,18 +245,24 @@ export class AuthController {
     });
   }
 
+  /** Reset password with a token */
   @Post('password/reset')
+  @ApiOperation({ summary: 'Reset password with a token' })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.passwordReset.reset(dto.token, dto.password);
   }
 
+  /** Reset password with an OTP code */
   @Post('password/reset/otp')
+  @ApiOperation({ summary: 'Reset password with an OTP code' })
   async resetPasswordByOtp(@Body() dto: ResetPasswordByOtpDto): Promise<void> {
     await this.passwordReset.resetByOtp(dto.email, dto.code, dto.password);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Change password (authenticated) */
   @Patch('password/change')
+  @ApiOperation({ summary: 'Change password (authenticated)' })
   async changePassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: ChangePasswordDto,
@@ -250,7 +275,9 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Set a password for an account without one */
   @Post('password/set')
+  @ApiOperation({ summary: 'Set a password for an account without one' })
   async setPassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: SetPasswordDto,
@@ -259,7 +286,9 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Request an email address change */
   @Post('email/change/request')
+  @ApiOperation({ summary: 'Request an email address change' })
   async requestEmailChange(
     @CurrentUser('sub') userId: string,
     @Body() dto: RequestEmailChangeDto,
@@ -267,19 +296,25 @@ export class AuthController {
     await this.changeContact.requestEmailChange(userId, dto.email);
   }
 
+  /** Confirm an email address change */
   @Post('email/change/confirm')
+  @ApiOperation({ summary: 'Confirm an email address change' })
   async confirmEmailChange(@Body() dto: ConfirmEmailChangeDto) {
     return this.changeContact.confirmEmailChange(dto.token);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** List enrolled two-factor methods */
   @Get('2fa/methods')
+  @ApiOperation({ summary: 'List enrolled two-factor methods' })
   listTwoFactorMethods(@CurrentUser('sub') userId: string) {
     return this.twoFactor.listMethods(userId);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Begin TOTP authenticator enrollment */
   @Post('2fa/enroll/totp')
+  @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
   async enrollTotp(@CurrentUser('sub') userId: string) {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
@@ -287,17 +322,21 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Confirm TOTP enrollment with a code */
   @Post('2fa/enroll/totp/confirm')
+  @ApiOperation({ summary: 'Confirm TOTP enrollment with a code' })
   async confirmTotp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
   ) {
     await this.totp.confirm(userId, dto.code);
-    return this.firstEnrollmentBackupCodes(userId);
+    return this.helper.firstEnrollmentBackupCodes(userId);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Begin email OTP two-factor enrollment */
   @Post('2fa/enroll/email/request')
+  @ApiOperation({ summary: 'Begin email OTP two-factor enrollment' })
   async enrollEmailOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollEmailOtpDto,
@@ -308,17 +347,21 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Confirm email OTP enrollment with a code */
   @Post('2fa/enroll/email/confirm')
+  @ApiOperation({ summary: 'Confirm email OTP enrollment with a code' })
   async confirmEmailOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
   ) {
     await this.twoFactor.confirmEmailOtp(userId, dto.code);
-    return this.firstEnrollmentBackupCodes(userId);
+    return this.helper.firstEnrollmentBackupCodes(userId);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Begin SMS OTP two-factor enrollment */
   @Post('2fa/enroll/sms/request')
+  @ApiOperation({ summary: 'Begin SMS OTP two-factor enrollment' })
   async enrollSmsOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: EnrollSmsOtpDto,
@@ -329,17 +372,21 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Confirm SMS OTP enrollment with a code */
   @Post('2fa/enroll/sms/confirm')
+  @ApiOperation({ summary: 'Confirm SMS OTP enrollment with a code' })
   async confirmSmsOtp(
     @CurrentUser('sub') userId: string,
     @Body() dto: ConfirmEnrollmentDto,
   ) {
     await this.twoFactor.confirmSmsOtp(userId, dto.code);
-    return this.firstEnrollmentBackupCodes(userId);
+    return this.helper.firstEnrollmentBackupCodes(userId);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Disable a two-factor method */
   @Delete('2fa/methods/:methodId')
+  @ApiOperation({ summary: 'Disable a two-factor method' })
   async disableTwoFactor(
     @CurrentUser('sub') userId: string,
     @Param('methodId') methodId: string,
@@ -348,25 +395,33 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Count remaining backup codes */
   @Get('2fa/backup-codes')
+  @ApiOperation({ summary: 'Count remaining backup codes' })
   countBackupCodes(@CurrentUser('sub') userId: string) {
     return this.twoFactor.countBackupCodes(userId);
   }
 
   @UseGuards(JwtAuthGuard)
+  /** Regenerate backup codes */
   @Post('2fa/backup-codes/regenerate')
+  @ApiOperation({ summary: 'Regenerate backup codes' })
   regenerateBackupCodes(@CurrentUser('sub') userId: string) {
     return this.twoFactor.regenerateBackupCodes(userId);
   }
 
+  /** Send a two-factor challenge code */
   @Post('2fa/challenge/send')
+  @ApiOperation({ summary: 'Send a two-factor challenge code' })
   async sendTwoFactorChallengeCode(
     @Body() dto: TwoFactorChallengeSendDto,
   ): Promise<void> {
     await this.twoFactor.sendChallengeCode(dto.challengeId, dto.type);
   }
 
+  /** Verify a two-factor challenge code */
   @Post('2fa/challenge/verify')
+  @ApiOperation({ summary: 'Verify a two-factor challenge code' })
   @ApiTransportHeader()
   async verifyTwoFactorChallenge(
     @Body() dto: TwoFactorChallengeVerifyDto,
@@ -377,51 +432,12 @@ export class AuthController {
       dto.challengeId,
       dto.type,
       dto.code,
-      this.requestContext(req),
+      this.helper.requestContext(req),
     );
-    const body = this.deliverTokens(res, tokens, this.wantsBearer(req));
+    const body = this.helper.deliverTokens(res, tokens, this.helper.wantsBearer(req));
     return {
       message: locals.auth.logged_in_successfully,
       ...(body && { root: body }),
-    };
-  }
-
-  private async firstEnrollmentBackupCodes(
-    userId: string,
-  ): Promise<{ data: { backupCodes: string[] } } | undefined> {
-    const codes = await this.twoFactor.issueBackupCodesIfNone(userId);
-    return codes ? { data: { backupCodes: codes } } : undefined;
-  }
-
-  private wantsBearer(req: Request): boolean {
-    return (
-      req.get(AUTH_TRANSPORT_HEADER)?.toLowerCase() === AUTH_TRANSPORT_BEARER
-    );
-  }
-
-  // One channel only. Bearer clients get tokens in the body and no cookie; cookie
-  // clients get the httpOnly cookie and nothing in the body.
-  private deliverTokens(
-    res: Response,
-    tokens: AuthTokens,
-    bearer: boolean,
-  ): { tokens: AuthTokens } | undefined {
-    if (bearer) {
-      return { tokens };
-    }
-    this.cookies.setAuthCookies(res, tokens);
-    return undefined;
-  }
-
-  private refreshTokenFromCookie(req: Request): string | undefined {
-    const value = req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
-    return typeof value === 'string' ? value : undefined;
-  }
-
-  private requestContext(req: Request): { ip?: string; userAgent?: string } {
-    return {
-      ip: req.ip,
-      userAgent: req.get('user-agent') ?? undefined,
     };
   }
 }

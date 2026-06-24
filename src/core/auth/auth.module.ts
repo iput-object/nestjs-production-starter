@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Config } from '@/configs/environment.config';
 import { AuthController } from '@/core/auth/auth.controller';
+import { AuthControllerHelper } from '@/core/auth/helpers/auth-controller.helper';
 import { JwtStrategy } from '@/core/auth/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from '@/core/auth/strategies/jwt-refresh.strategy';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
@@ -66,6 +67,7 @@ import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
     ChangeContactService,
     PhoneVerifyService,
     DevSecretLogger,
+    AuthControllerHelper,
   ],
   exports: [
     JwtModule,
