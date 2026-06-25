@@ -1,23 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
-import type { ResetChannel } from '@/core/auth/services/auth-cache.service';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
-export class ForgotPasswordChannelsDto {
-  // Email or phone — the service resolves which and lists reset channels.
-  @Transform(({ value }: { value: string }) => value?.trim())
-  @IsString()
-  @MinLength(3)
+export class ForgotPasswordDto {
+  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
+  @IsEmail()
   @MaxLength(320)
-  identifier!: string;
-}
-
-export class SendResetOtpDto {
-  @IsString()
-  @MinLength(20)
-  requestId!: string;
-
-  @IsIn(['email', 'sms'])
-  channel!: ResetChannel;
+  email!: string;
 }
 
 export class ResetPasswordDto {
@@ -32,9 +20,10 @@ export class ResetPasswordDto {
 }
 
 export class ResetPasswordByOtpDto {
-  @IsString()
-  @MinLength(20)
-  requestId!: string;
+  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
 
   @IsString()
   @MinLength(4)

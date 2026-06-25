@@ -37,10 +37,9 @@ import { LoginDto } from '@/core/auth/dto/login.dto';
 import { RefreshDto } from '@/core/auth/dto/refresh.dto';
 import { RegisterDto } from '@/core/auth/dto/register.dto';
 import {
-  ForgotPasswordChannelsDto,
+  ForgotPasswordDto,
   ResetPasswordByOtpDto,
   ResetPasswordDto,
-  SendResetOtpDto,
 } from '@/core/auth/dto/reset-password.dto';
 import {
   TwoFactorChallengeSendDto,
@@ -56,10 +55,7 @@ import { ChangeContactService } from '@/core/auth/services/change-contact.servic
 import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { LoginService } from '@/core/auth/services/login.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
-import {
-  PasswordResetService,
-  ResetChannelsResult,
-} from '@/core/auth/services/password-reset.service';
+import { PasswordResetService } from '@/core/auth/services/password-reset.service';
 import { RegisterService } from '@/core/auth/services/register.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
@@ -233,28 +229,16 @@ export class AuthController {
     return { message: locals.auth.email_verification_sent };
   }
 
-  /** List the channels an account can reset through (email/SMS) */
-  @Post('password/forgot/channels')
+  /** Send a password reset email (magic link + OTP code) */
+  @Post('password/forgot')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'List password reset channels for an account' })
+  @ApiOperation({ summary: 'Send a password reset email' })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  async forgotPasswordChannels(
-    @Body() dto: ForgotPasswordChannelsDto,
-  ): Promise<ServiceResponse<ResetChannelsResult>> {
-    const result = await this.passwordReset.discoverChannels(dto.identifier);
-    return { message: locals.auth.password_reset_channels, data: result };
-  }
-
-  /** Send a reset code on the chosen channel */
-  @Post('password/forgot/send')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Send a reset code on the chosen channel' })
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  async sendResetOtp(
-    @Body() dto: SendResetOtpDto,
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
   ): Promise<ServiceResponse<void>> {
-    await this.passwordReset.sendOtp(dto.requestId, dto.channel);
-    return { message: locals.auth.password_reset_code_sent };
+    await this.passwordReset.forgot(dto.email);
+    return { message: locals.auth.password_reset_email_sent };
   }
 
   /** Reset password with a token */
@@ -275,7 +259,7 @@ export class AuthController {
   async resetPasswordByOtp(
     @Body() dto: ResetPasswordByOtpDto,
   ): Promise<ServiceResponse<void>> {
-    await this.passwordReset.resetByOtp(dto.requestId, dto.code, dto.password);
+    await this.passwordReset.resetByOtp(dto.email, dto.code, dto.password);
     return { message: locals.auth.password_reset_successful };
   }
 

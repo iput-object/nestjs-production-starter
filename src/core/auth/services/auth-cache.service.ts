@@ -35,16 +35,6 @@ export interface OtpTokenIndexRecord {
   purpose: OtpPurpose;
 }
 
-export type ResetChannel = 'email' | 'sms';
-
-// Holds the resolved user + the channels they may reset through, so the
-// follow-up send/verify calls reference an opaque id instead of re-collecting
-// (and re-disclosing) the raw email/phone.
-export interface ResetRequestRecord {
-  userId: string;
-  channels: ResetChannel[];
-}
-
 export interface EmailVerifyRecord {
   userId: string;
   email: string;
@@ -166,23 +156,6 @@ export class AuthCacheService {
     );
   }
 
-  // ---------- Password reset request (channel discovery) ----------
-  async setResetRequest(
-    requestId: string,
-    record: ResetRequestRecord,
-    ttlSeconds: number,
-  ): Promise<void> {
-    await this.cache.set(this.resetRequestKey(requestId), record, ttlSeconds);
-  }
-
-  getResetRequest(requestId: string): Promise<ResetRequestRecord | null> {
-    return this.cache.get<ResetRequestRecord>(this.resetRequestKey(requestId));
-  }
-
-  async deleteResetRequest(requestId: string): Promise<void> {
-    await this.cache.del(this.resetRequestKey(requestId));
-  }
-
   // ---------- Email verify ----------
   async setEmailVerify(
     tokenHash: string,
@@ -283,9 +256,6 @@ export class AuthCacheService {
     destination: string,
   ): string {
     return `otp:throttle:${channel}:${destination}`;
-  }
-  private resetRequestKey(requestId: string): string {
-    return `pwd-reset-req:${requestId}`;
   }
   private emailVerifyKey(tokenHash: string): string {
     return `email-verify:${tokenHash}`;
