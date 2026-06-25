@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import twilio, { Twilio } from 'twilio';
 import { Config } from '@/configs/environment.config';
 import { SmsMessage, SmsPort } from '@/infrastructure/sms/sms.types';
+import locals from '@/locals';
 
 @Injectable()
 export class TwilioSmsService implements SmsPort {
@@ -22,7 +23,9 @@ export class TwilioSmsService implements SmsPort {
 
   async send(message: SmsMessage): Promise<void> {
     if (!this.isConfigured()) {
-      throw new ServiceUnavailableException('SMS provider not configured');
+      throw new ServiceUnavailableException(
+        locals.error.sms_provider_not_configured,
+      );
     }
 
     const sms = this.config.get<Config['sms']>('sms')!;

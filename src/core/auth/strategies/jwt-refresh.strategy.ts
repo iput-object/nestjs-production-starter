@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Config } from '@/configs/environment.config';
 import { JwtPayload } from '@/core/auth/types/jwt-payload.type';
+import locals from '@/locals';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -22,7 +23,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
 
   validate(payload: JwtPayload): JwtPayload {
     if (payload.tokenType !== 'refresh') {
-      throw new UnauthorizedException('Refresh token required');
+      throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
 
     return payload;

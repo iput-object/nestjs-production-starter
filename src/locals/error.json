@@ -1,3 +1,4 @@
 {
-  "internal_server_error": "Internal server error"
+  "internal_server_error": "Internal server error",
+  "sms_provider_not_configured": "SMS provider not configured"
 }

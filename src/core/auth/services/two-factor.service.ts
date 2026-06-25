@@ -23,6 +23,7 @@ import type {
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
 import { TokenService } from '@/core/auth/services/token.service';
+import locals from '@/locals';
 
 const BACKUP_CODE_COUNT = 10;
 const BACKUP_CODE_BYTES = 5; // → 10 hex chars
@@ -57,9 +58,7 @@ export class TwoFactorService {
   async enrollEmailOtp(user: User, email?: string): Promise<void> {
     const destination = email ?? user.email;
     if (!destination) {
-      throw new BadRequestException(
-        'No email on file; provide an email to enroll',
-      );
+      throw new BadRequestException(locals.auth.no_email_to_enroll);
     }
 
     const existing = await this.twoFactor.findByUserAndType(
@@ -67,7 +66,7 @@ export class TwoFactorService {
       TwoFactorMethodType.EMAIL_OTP,
     );
     if (existing?.isEnabled) {
-      throw new ConflictException('Email OTP already enabled');
+      throw new ConflictException(locals.auth.email_otp_already_enabled);
     }
 
     await this.twoFactor.upsert({
@@ -90,10 +89,10 @@ export class TwoFactorService {
       TwoFactorMethodType.EMAIL_OTP,
     );
     if (!method) {
-      throw new NotFoundException('Email OTP enrollment not started');
+      throw new NotFoundException(locals.auth.email_otp_enrollment_not_started);
     }
     if (method.isEnabled) {
-      throw new ConflictException('Email OTP already enabled');
+      throw new ConflictException(locals.auth.email_otp_already_enabled);
     }
     await this.otp.verify({
       channel: 'email',
@@ -108,9 +107,7 @@ export class TwoFactorService {
   async enrollSmsOtp(user: User, phone?: string): Promise<void> {
     const destination = phone ?? user.phone;
     if (!destination) {
-      throw new BadRequestException(
-        'No phone on file; provide a phone to enroll',
-      );
+      throw new BadRequestException(locals.auth.no_phone_to_enroll);
     }
 
     const existing = await this.twoFactor.findByUserAndType(
@@ -118,7 +115,7 @@ export class TwoFactorService {
       TwoFactorMethodType.SMS_OTP,
     );
     if (existing?.isEnabled) {
-      throw new ConflictException('SMS OTP already enabled');
+      throw new ConflictException(locals.auth.sms_otp_already_enabled);
     }
 
     await this.twoFactor.upsert({
@@ -141,10 +138,10 @@ export class TwoFactorService {
       TwoFactorMethodType.SMS_OTP,
     );
     if (!method) {
-      throw new NotFoundException('SMS OTP enrollment not started');
+      throw new NotFoundException(locals.auth.sms_otp_enrollment_not_started);
     }
     if (method.isEnabled) {
-      throw new ConflictException('SMS OTP already enabled');
+      throw new ConflictException(locals.auth.sms_otp_already_enabled);
     }
     await this.otp.verify({
       channel: 'sms',
@@ -159,7 +156,7 @@ export class TwoFactorService {
   async disable(userId: string, methodId: string): Promise<void> {
     const method = await this.twoFactor.findById(methodId);
     if (!method || method.userId !== userId) {
-      throw new NotFoundException('Two-factor method not found');
+      throw new NotFoundException(locals.auth.two_factor_method_not_found);
     }
     await this.twoFactor.delete(methodId);
 
@@ -176,7 +173,7 @@ export class TwoFactorService {
     const enabled = await this.twoFactor.findEnabledForUser(userId);
     if (enabled.length === 0) {
       throw new ConflictException(
-        'Enable a 2FA method before generating backup codes',
+        locals.auth.enable_2fa_before_backup_codes,
       );
     }
     return { codes: await this.replaceBackupCodes(userId) };
@@ -241,11 +238,11 @@ export class TwoFactorService {
     type: TwoFactorMethodType,
   ): Promise<void> {
     if (type === TwoFactorMethodType.TOTP) {
-      throw new BadRequestException('TOTP does not require a sent code');
+      throw new BadRequestException(locals.auth.totp_no_sent_code);
     }
     const record = await this.cache.getTwoFactorChallenge(challengeId);
     if (!record) {
-      throw new UnauthorizedException('Challenge invalid or expired');
+      throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
     }
     const methods = await this.twoFactor.findEnabledForUser(record.userId);
     const method = methods.find((m) => m.type === type);
@@ -254,7 +251,9 @@ export class TwoFactorService {
       !record.methodIds.includes(method.id) ||
       !method.destination
     ) {
-      throw new ForbiddenException('Method not available for this challenge');
+      throw new ForbiddenException(
+        locals.auth.method_not_available_for_challenge,
+      );
     }
     await this.otp.send({
       channel: type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms',
@@ -273,12 +272,12 @@ export class TwoFactorService {
   ): Promise<AuthTokens> {
     const record = await this.cache.getTwoFactorChallenge(challengeId);
     if (!record) {
-      throw new UnauthorizedException('Challenge invalid or expired');
+      throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
     }
 
     const user = await this.users.findById(record.userId);
     if (!user) {
-      throw new UnauthorizedException('Account no longer available');
+      throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
 
     const methods = await this.twoFactor.findEnabledForUser(user.id);
@@ -286,13 +285,15 @@ export class TwoFactorService {
       (m) => m.type === type && record.methodIds.includes(m.id),
     );
     if (!method) {
-      throw new ForbiddenException('Method not available for this challenge');
+      throw new ForbiddenException(
+        locals.auth.method_not_available_for_challenge,
+      );
     }
 
     let ok = false;
     if (type === TwoFactorMethodType.TOTP) {
       if (!method.secret) {
-        throw new ForbiddenException('TOTP method missing secret');
+        throw new ForbiddenException(locals.auth.totp_method_missing_secret);
       }
       ok = this.totp.verifyEnrolled(method.secret, code);
     } else {
@@ -316,7 +317,7 @@ export class TwoFactorService {
     }
 
     if (!ok) {
-      throw new UnauthorizedException('Invalid code');
+      throw new UnauthorizedException(locals.auth.invalid_code);
     }
 
     await this.twoFactor.touchLastUsed(method.id);

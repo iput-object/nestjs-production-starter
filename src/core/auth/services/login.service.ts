@@ -9,6 +9,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthProvider, UserStatus } from '@prisma-client';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { format } from '@/common/utils/format.util';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
@@ -22,6 +23,7 @@ import type {
 } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import type { TwoFactorMethodType } from '@prisma-client';
+import locals from '@/locals';
 
 export type LoginResult =
   | { kind: 'tokens'; tokens: AuthTokens; user: AuthUser }
@@ -49,7 +51,7 @@ export class LoginService {
     const fails = await this.cache.getLoginFails(emailHash);
     if (fails >= AUTH_POLICY.loginMaxFails) {
       throw new HttpException(
-        'Too many failed attempts. Try again later.',
+        locals.auth.too_many_failed_attempts,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -57,11 +59,15 @@ export class LoginService {
     const user = await this.users.findByEmail(dto.email);
     if (!user) {
       await this.recordFail(emailHash, fails);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException(`Account ${user.status.toLowerCase()}`);
+      throw new ForbiddenException(
+        format(locals.auth.account_status, {
+          status: user.status.toLowerCase(),
+        }),
+      );
     }
 
     const credential = await this.credentials.findByUserAndProvider(
@@ -70,13 +76,13 @@ export class LoginService {
     );
     if (!credential || !credential.passwordHash) {
       await this.recordFail(emailHash, fails);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     const matches = await bcrypt.compare(dto.password, credential.passwordHash);
     if (!matches) {
       await this.recordFail(emailHash, fails);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     await this.cache.deleteLoginFails(emailHash);
@@ -98,7 +104,7 @@ export class LoginService {
 
     const authUser = await this.users.findAuthUser(user.id);
     if (!authUser) {
-      throw new UnauthorizedException('Account no longer available');
+      throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
     const tokens = await this.tokens.issue(user.id, context);
     return { kind: 'tokens', tokens, user: authUser };

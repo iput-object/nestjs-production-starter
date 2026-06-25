@@ -4,6 +4,7 @@ import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
+import locals from '@/locals';
 
 const DEFAULT_TOKENS: TokenType[] = [TokenType.CODE, TokenType.TOKEN];
 
@@ -47,7 +48,7 @@ export class EmailVerifyService {
     const { userId, purpose } = await this.otpSession.verifyByToken(token);
     if (purpose !== 'register-verify') {
       throw new UnauthorizedException(
-        'Verification link is invalid or expired',
+        locals.auth.verification_link_invalid_or_expired,
       );
     }
     await this.users.markEmailVerified(userId);
@@ -56,7 +57,7 @@ export class EmailVerifyService {
   async confirmOtp(email: string, code: string): Promise<void> {
     const user = await this.users.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException('Code is invalid or expired');
+      throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
     await this.otpSession.verifyByCode(user.id, 'register-verify', code);
     await this.users.markEmailVerified(user.id);

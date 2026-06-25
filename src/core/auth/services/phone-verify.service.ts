@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { OtpService } from '@/core/auth/services/otp.service';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
+import locals from '@/locals';
 
 @Injectable()
 export class PhoneVerifyService {
@@ -11,7 +12,7 @@ export class PhoneVerifyService {
 
   async issueAndSend(userId: string, phone: string): Promise<void> {
     if (!phone) {
-      throw new BadRequestException('Phone is required');
+      throw new BadRequestException(locals.auth.phone_required);
     }
     await this.otp.send({
       channel: 'sms',

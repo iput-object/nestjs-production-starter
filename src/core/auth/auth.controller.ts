@@ -164,7 +164,7 @@ export class AuthController {
     const presentedRefreshToken =
       dto.refreshToken ?? this.helper.refreshTokenFromCookie(req);
     if (!presentedRefreshToken) {
-      throw new UnauthorizedException('Refresh token required');
+      throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
     const tokens = await this.tokens.refresh(
       presentedRefreshToken,
@@ -331,7 +331,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
   async enrollTotp(@CurrentUser('sub') userId: string) {
     const user = await this.users.findById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
     return this.totp.enroll(user);
   }
 
@@ -358,7 +358,7 @@ export class AuthController {
     @Body() dto: EnrollEmailOtpDto,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
     await this.twoFactor.enrollEmailOtp(user, dto.email);
     return { message: locals.auth.two_factor_code_sent };
   }
@@ -386,7 +386,7 @@ export class AuthController {
     @Body() dto: EnrollSmsOtpDto,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
     await this.twoFactor.enrollSmsOtp(user, dto.phone);
     return { message: locals.auth.two_factor_code_sent };
   }

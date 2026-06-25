@@ -15,6 +15,7 @@ import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { OtpService } from '@/core/auth/services/otp.service';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
+import locals from '@/locals';
 
 @Injectable()
 export class ChangeContactService {
@@ -32,7 +33,7 @@ export class ChangeContactService {
   async requestEmailChange(userId: string, newEmail: string): Promise<void> {
     const owner = await this.users.findByEmail(newEmail);
     if (owner && owner.id !== userId) {
-      throw new ConflictException('Email already in use');
+      throw new ConflictException(locals.auth.email_already_in_use);
     }
 
     const app = this.config.get<Config['app']>('app')!;
@@ -62,12 +63,14 @@ export class ChangeContactService {
     const tokenHash = this.crypto.hashSha256(token);
     const record = await this.cache.getEmailVerify(tokenHash);
     if (!record) {
-      throw new NotFoundException('Confirmation link is invalid or expired');
+      throw new NotFoundException(
+        locals.auth.confirmation_link_invalid_or_expired,
+      );
     }
 
     const owner = await this.users.findByEmail(record.email);
     if (owner && owner.id !== record.userId) {
-      throw new ConflictException('Email already in use');
+      throw new ConflictException(locals.auth.email_already_in_use);
     }
 
     const updated = await this.users.updateEmail(record.userId, record.email);
@@ -90,7 +93,7 @@ export class ChangeContactService {
   async requestPhoneChange(userId: string, newPhone: string): Promise<void> {
     const owner = await this.users.findByPhone(newPhone);
     if (owner && owner.id !== userId) {
-      throw new ConflictException('Phone already in use');
+      throw new ConflictException(locals.auth.phone_already_in_use);
     }
     await this.users.updatePhone(userId, newPhone);
     await this.otp.send({

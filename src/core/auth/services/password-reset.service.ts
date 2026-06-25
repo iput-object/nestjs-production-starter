@@ -8,6 +8,7 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
+import locals from '@/locals';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -53,7 +54,7 @@ export class PasswordResetService {
   async reset(token: string, newPassword: string): Promise<void> {
     const { userId, purpose } = await this.otpSession.verifyByToken(token);
     if (purpose !== 'reset-password') {
-      throw new NotFoundException('Reset link is invalid or expired');
+      throw new NotFoundException(locals.auth.reset_link_invalid_or_expired);
     }
     await this.applyNewPassword(userId, newPassword);
   }
@@ -66,7 +67,7 @@ export class PasswordResetService {
     const user = await this.users.findByEmail(email.toLowerCase());
     if (!user) {
       // Verify against a non-existent session yields the same generic error.
-      throw new NotFoundException('Code is invalid or expired');
+      throw new NotFoundException(locals.auth.code_invalid_or_expired);
     }
     await this.otpSession.verifyByCode(user.id, 'reset-password', code);
     await this.applyNewPassword(user.id, newPassword);
@@ -81,7 +82,7 @@ export class PasswordResetService {
       AuthProvider.EMAIL,
     );
     if (!credential) {
-      throw new NotFoundException('No password credential on this account');
+      throw new NotFoundException(locals.auth.no_password_credential);
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);

@@ -12,6 +12,7 @@ import { TwoFactorMethodType } from '@prisma-client';
 import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
+import locals from '@/locals';
 
 export interface TotpEnrollmentResult {
   methodId: string;
@@ -62,14 +63,14 @@ export class TotpService {
       TwoFactorMethodType.TOTP,
     );
     if (!method || !method.secret) {
-      throw new NotFoundException('TOTP enrollment not started');
+      throw new NotFoundException(locals.auth.totp_enrollment_not_started);
     }
     if (method.isEnabled) {
-      throw new ConflictException('TOTP already enabled');
+      throw new ConflictException(locals.auth.totp_already_enabled);
     }
 
     if (!this.verifyCode(method.secret, code)) {
-      throw new UnauthorizedException('Invalid authenticator code');
+      throw new UnauthorizedException(locals.auth.invalid_authenticator_code);
     }
 
     await this.twoFactor.enable(method.id);

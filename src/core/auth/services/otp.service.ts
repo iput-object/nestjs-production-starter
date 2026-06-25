@@ -15,11 +15,13 @@ import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { SMS_PORT } from '@/infrastructure/sms/sms.constants';
 import type { SmsPort } from '@/infrastructure/sms/sms.types';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { format } from '@/common/utils/format.util';
 import {
   AuthCacheService,
   OtpPurpose,
 } from '@/core/auth/services/auth-cache.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
+import locals from '@/locals';
 
 const BCRYPT_ROUNDS = 8;
 
@@ -59,7 +61,7 @@ export class OtpService {
     );
     if (throttle >= OTP_POLICY.maxAttempts) {
       throw new HttpException(
-        'Too many OTP requests for this destination',
+        locals.auth.too_many_otp_requests_destination,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -74,14 +76,16 @@ export class OtpService {
       const ageSeconds = Math.floor((Date.now() - existing.sentAt) / 1000);
       if (ageSeconds < OTP_POLICY.resendCooldownSeconds) {
         throw new HttpException(
-          `Wait ${OTP_POLICY.resendCooldownSeconds - ageSeconds}s before requesting another code`,
+          format(locals.auth.otp_resend_cooldown, {
+            seconds: OTP_POLICY.resendCooldownSeconds - ageSeconds,
+          }),
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
     }
 
     if (input.channel === 'sms' && !this.sms.isConfigured()) {
-      throw new ForbiddenException('SMS OTP is not enabled on this server');
+      throw new ForbiddenException(locals.auth.sms_otp_not_enabled);
     }
 
     const code = this.crypto.randomNumericCode(OTP_POLICY.length);
@@ -143,13 +147,13 @@ export class OtpService {
       input.purpose,
     );
     if (!record) {
-      throw new UnauthorizedException('Code is invalid or expired');
+      throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
 
     if (record.attempts >= OTP_POLICY.maxAttempts) {
       await this.cache.deleteOtp(input.channel, input.userId, input.purpose);
       throw new HttpException(
-        'Too many incorrect attempts',
+        locals.auth.too_many_incorrect_attempts,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -174,7 +178,7 @@ export class OtpService {
         { ...record, attempts: record.attempts + 1 },
         ttl,
       );
-      throw new UnauthorizedException('Code is invalid or expired');
+      throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
 
     await this.cache.deleteOtp(input.channel, input.userId, input.purpose);

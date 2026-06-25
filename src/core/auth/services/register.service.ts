@@ -10,6 +10,7 @@ import type {
   AuthTokens,
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
+import locals from '@/locals';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,7 +29,7 @@ export class RegisterService {
   ): Promise<AuthTokens> {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException(locals.auth.email_already_registered);
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);

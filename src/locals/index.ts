@@ -3,6 +3,7 @@ import response from './response.json';
 import error from './error.json';
 import logging from './logging.json';
 import auth from './auth.json';
+import fcm from './fcm.json';
 //
 //
 //
@@ -28,4 +29,5 @@ export default withFallback({
   error,
   logging,
   auth,
+  fcm,
 });

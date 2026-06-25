@@ -10,6 +10,7 @@ import type {
   AuthTokens,
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
+import locals from '@/locals';
 
 const SECONDS_IN_DAY = 86_400;
 
@@ -72,10 +73,10 @@ export class TokenService {
         secret: auth.jwtRefreshSecret,
       });
     } catch {
-      throw new UnauthorizedException('Refresh token required');
+      throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
     if (payload.tokenType !== 'refresh') {
-      throw new UnauthorizedException('Refresh token required');
+      throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
     return this.rotate(payload.sub, presentedRefreshToken, context);
   }

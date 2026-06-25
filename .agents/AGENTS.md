@@ -198,9 +198,13 @@ Backing principles: [R37](#r37), [R36](#r36), [R5](#r5), [R24](#r24).
 - The pattern: `Queued<X>Service` enqueues, `<X>.processor.ts` runs the job. Controllers/services call the queued variant; they never block on the work.
 - Queue names live in `*.constants.ts`. Job payload types in `*.types.ts`.
 
-## 14. Internationalization
+## 14. Internationalization (HARD rule)
 
-- User-facing strings go in `src/locals/` and are imported as `import locals from '@/locals';`. Don't hard-code English in service/controller responses.
+- **Every** user-facing string MUST be localized. No literal English in a controller/service response, exception message, or anything else a client can read. If you add a new flow, you add its strings to `src/locals/` in the same change.
+- Strings live in the relevant `src/locals/*.json` file (`auth.json`, `error.json`, etc.) and are read via `import locals from '@/locals';` (e.g. `locals.auth.password_reset_email_sent`). Never inline the English.
+- Keys are `snake_case` and describe the outcome, not the implementation (`password_reset_email_sent`, not `sent_ok`). Group them by domain file.
+- When you remove or rename a flow, remove or rename its now-orphaned keys in the same diff — don't leave dead strings behind.
+- This applies to thrown exception messages too where they surface to the client. A bare `throw new BadRequestException('Invalid code')` should pull its text from `locals`, not hard-code it.
 
 ## 15. Testing
 

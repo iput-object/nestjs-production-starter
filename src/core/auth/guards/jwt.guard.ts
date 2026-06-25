@@ -10,6 +10,7 @@ import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
 import { OPTIONAL_AUTH_KEY } from '@/core/auth/decorators/optional-auth.decorator';
 import { TOKEN_TYPE_KEY } from '@/core/auth/decorators/token-type.decorator';
 import { JwtPayload, JwtTokenType } from '@/core/auth/types/jwt-payload.type';
+import locals from '@/locals';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -50,7 +51,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const payload = user as unknown as JwtPayload;
     if (payload.tokenType !== requiredTokenType) {
-      throw new UnauthorizedException('Invalid token type for this route');
+      throw new UnauthorizedException(locals.auth.invalid_token_type);
     }
 
     return user;

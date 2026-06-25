@@ -6,6 +6,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Config } from '@/configs/environment.config';
 import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
 import { JwtPayload } from '@/core/auth/types/jwt-payload.type';
+import locals from '@/locals';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -25,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   validate(payload: JwtPayload): JwtPayload {
     if (payload.tokenType !== 'access') {
-      throw new UnauthorizedException('Access token required');
+      throw new UnauthorizedException(locals.auth.access_token_required);
     }
 
     return payload;

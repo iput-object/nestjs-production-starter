@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { OTP_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { format } from '@/common/utils/format.util';
+import locals from '@/locals';
 import {
   AuthCacheService,
   OtpPurpose,
@@ -68,7 +70,9 @@ export class OtpSessionService {
       const ageSeconds = Math.floor((Date.now() - existing.sentAt) / 1000);
       if (ageSeconds < OTP_POLICY.resendCooldownSeconds) {
         throw new HttpException(
-          `Wait ${OTP_POLICY.resendCooldownSeconds - ageSeconds}s before requesting another code`,
+          format(locals.auth.otp_resend_cooldown, {
+            seconds: OTP_POLICY.resendCooldownSeconds - ageSeconds,
+          }),
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
@@ -81,7 +85,7 @@ export class OtpSessionService {
     );
     if (sends >= OTP_POLICY.maxSendsPerWindow) {
       throw new HttpException(
-        'Too many requests for this destination',
+        locals.auth.too_many_requests_destination,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -154,13 +158,13 @@ export class OtpSessionService {
   ): Promise<ConsumedOtpSession> {
     const record = await this.cache.getOtpSession(userId, purpose);
     if (!record?.codeHash) {
-      throw new UnauthorizedException('Code is invalid or expired');
+      throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
 
     if (record.attempts >= OTP_POLICY.maxAttempts) {
       await this.destroy(record);
       throw new HttpException(
-        'Too many incorrect attempts',
+        locals.auth.too_many_incorrect_attempts,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -173,7 +177,7 @@ export class OtpSessionService {
         { ...record, attempts: record.attempts + 1 },
         this.remainingTtlSeconds(record),
       );
-      throw new UnauthorizedException('Code is invalid or expired');
+      throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
 
     await this.destroy(record);
@@ -184,14 +188,14 @@ export class OtpSessionService {
     const tokenHash = this.crypto.hashSha256(rawToken);
     const index = await this.cache.getOtpTokenIndex(tokenHash);
     if (!index) {
-      throw new UnauthorizedException('Link is invalid or expired');
+      throw new UnauthorizedException(locals.auth.link_invalid_or_expired);
     }
 
     const record = await this.cache.getOtpSession(index.userId, index.purpose);
     if (!record || record.tokenHash !== tokenHash) {
       // Index outlived its record (already consumed); clean up the dangling key.
       await this.cache.deleteOtpTokenIndex(tokenHash);
-      throw new UnauthorizedException('Link is invalid or expired');
+      throw new UnauthorizedException(locals.auth.link_invalid_or_expired);
     }
 
     await this.destroy(record);

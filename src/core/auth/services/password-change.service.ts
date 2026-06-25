@@ -10,6 +10,7 @@ import { AuthProvider } from '@prisma-client';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { TokenService } from '@/core/auth/services/token.service';
+import locals from '@/locals';
 
 const BCRYPT_ROUNDS = 12;
 // Apple's Hide-My-Email relay isn't a real address the user controls — never
@@ -34,7 +35,7 @@ export class PasswordChangeService {
       AuthProvider.EMAIL,
     );
     if (!credential || !credential.passwordHash) {
-      throw new NotFoundException('No password credential on this account');
+      throw new NotFoundException(locals.auth.no_password_credential);
     }
 
     const matches = await bcrypt.compare(
@@ -42,13 +43,11 @@ export class PasswordChangeService {
       credential.passwordHash,
     );
     if (!matches) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException(locals.auth.current_password_incorrect);
     }
 
     if (currentPassword === newPassword) {
-      throw new UnauthorizedException(
-        'New password must differ from current password',
-      );
+      throw new UnauthorizedException(locals.auth.password_must_differ);
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
@@ -65,16 +64,16 @@ export class PasswordChangeService {
   async set(userId: string, newPassword: string): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(locals.auth.user_not_found);
     }
     if (!user.email || !user.isEmailVerified) {
       throw new BadRequestException(
-        'A verified email is required before setting a password',
+        locals.auth.verified_email_required_for_password,
       );
     }
     if (user.email.toLowerCase().endsWith(APPLE_RELAY_DOMAIN)) {
       throw new BadRequestException(
-        'Add a real email address before setting a password',
+        locals.auth.real_email_required_for_password,
       );
     }
 
@@ -83,9 +82,7 @@ export class PasswordChangeService {
       AuthProvider.EMAIL,
     );
     if (existing) {
-      throw new ConflictException(
-        'Password credential already exists; use change-password instead',
-      );
+      throw new ConflictException(locals.auth.password_credential_exists);
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);

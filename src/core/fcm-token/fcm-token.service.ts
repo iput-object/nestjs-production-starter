@@ -6,6 +6,7 @@ import {
   RegisterFcmTokenDto,
 } from '@/core/fcm-token/dto/register-fcm-token.dto';
 import { RemoveFcmTokenDto } from '@/core/fcm-token/dto/remove-fcm-token.dto';
+import locals from '@/locals';
 
 type StoredFcmToken = {
   userId: string;
@@ -43,7 +44,7 @@ export class FcmTokenService {
     });
 
     return {
-      message: 'FCM token registered successfully',
+      message: locals.fcm.token_registered,
       data: record,
     };
   }
@@ -58,7 +59,7 @@ export class FcmTokenService {
 
     if (!existing) {
       return {
-        message: 'FCM token not found',
+        message: locals.fcm.token_not_found,
         data: { removed: false },
       };
     }
@@ -69,7 +70,7 @@ export class FcmTokenService {
     );
 
     return {
-      message: 'FCM token removed successfully',
+      message: locals.fcm.token_removed,
       data: { removed: true },
     };
   }
