@@ -23,11 +23,12 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432" # remove in production deployments
+      - postgres-data:/var/lib/postgresql
+    # If you want to expose the Postgres port outside the Docker network, uncomment the following line.
+    # ports:
+    #   - "5432:5432" # remove in production deployments
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -38,13 +39,14 @@ services:
     image: redis:8-alpine
     container_name: nest-prisma-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis-data:/data
-    ports:
-      - "6379:6379" # remove in production deployments
+    # If you want to expose the Redis port outside the Docker network, uncomment the following line.
+    # ports:
+    #   - "6379:6379" # remove in production deployments
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -68,16 +70,16 @@ services:
         required: false
     environment:
       NODE_ENV: production
-      PORT: "3000"
+      PORT: '3000'
       DATABASE_URL: postgresql://postgres:password@postgres:5432/postgres
       REDIS_URL: redis://redis:6379
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
       OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: ${OTEL_EXPORTER_OTLP_LOGS_PROTOCOL:-http/protobuf}
       OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-true}
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     ports:
-      - "3000:3000"
+      - '3000:3000'
     networks: [app-net]
 
 volumes:

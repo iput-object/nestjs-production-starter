@@ -18,4 +18,4 @@ echo "[entrypoint] applying prisma migrations"
 pnpm exec prisma migrate deploy
 
 echo "[entrypoint] starting app"
-exec node dist/main
+exec node dist/src/main

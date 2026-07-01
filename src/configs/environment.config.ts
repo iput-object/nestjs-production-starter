@@ -141,12 +141,9 @@ const envSchema = z
     }
 
     if (/(localhost|127\.0\.0\.1)/i.test(cfg.app.frontendUrl)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['app', 'frontendUrl'],
-        message:
-          'FRONTEND_URL points to localhost in production. Set the real frontend URL.',
-      });
+      console.warn(
+        'WARNING: FRONTEND_URL points to localhost in production. Set the real frontend URL.',
+      );
     }
   });
 

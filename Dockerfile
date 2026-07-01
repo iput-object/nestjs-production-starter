@@ -21,7 +21,7 @@
 #   - HEALTHCHECK uses Node itself (no curl/wget install needed) and hits the
 #     existing /api/v1/health/liveness endpoint.
 
-ARG NODE_VERSION=22-bookworm-slim
+ARG NODE_VERSION=24-alpine
 
 
 # ─── base ────────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ FROM node:${NODE_VERSION} AS base
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
     CI=true
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 
