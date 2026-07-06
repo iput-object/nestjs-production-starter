@@ -1,0 +1,11 @@
+{
+  "upload_url_created": "Upload URL created successfully",
+  "upload_confirmed": "Upload confirmed successfully",
+  "download_url_created": "Download URL created successfully",
+  "file_deleted": "File deleted successfully",
+  "file_not_found": "File not found",
+  "file_not_uploaded": "File has not finished uploading",
+  "upload_not_found_in_storage": "Upload was not found in storage",
+  "file_too_large": "File exceeds the maximum allowed size",
+  "storage_not_configured": "File storage is not configured"
+}

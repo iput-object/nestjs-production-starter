@@ -1,0 +1,41 @@
+// ============================================================
+// common/file.prisma
+//
+// Metadata for objects stored in S3 (or an S3-compatible store).
+// Binary bytes never touch the API — the client uploads/downloads
+// directly via presigned URLs (see AGENTS.md §18 / R41).
+//
+// Lifecycle:
+//   PENDING  -> row created when an upload URL is issued
+//   UPLOADED -> set once the object is confirmed present in the bucket
+// ============================================================
+
+enum FileStatus {
+  PENDING
+  UPLOADED
+}
+
+enum FileVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+model FileObject {
+  id           String         @id @default(uuid())
+  ownerId      String
+  key          String         @unique // object key within the bucket
+  bucket       String
+  contentType  String
+  size         Int? // bytes; filled in on confirmation
+  originalName String?
+  status       FileStatus     @default(PENDING)
+  visibility   FileVisibility @default(PRIVATE)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  confirmedAt DateTime?
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("file_objects")
+}

@@ -3,10 +3,7 @@ import { CACHE_PORT } from '@/infrastructure/redis/redis.constants';
 import type { CachePort } from '@/infrastructure/redis/redis.types';
 
 export type OtpPurpose =
-  | 'login'
-  | 'register-verify'
-  | 'reset-password'
-  | 'enroll-2fa';
+  'login' | 'register-verify' | 'reset-password' | 'enroll-2fa';
 
 export interface OtpRecord {
   codeHash: string;

@@ -110,8 +110,7 @@ export async function prismaPaginate<
     const hasNext = dataWithExtra.length > limit;
     const data = hasNext ? dataWithExtra.slice(0, limit) : dataWithExtra;
     const lastItem = data[data.length - 1] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const nextCursor =
       hasNext && lastItem
         ? encodeCursor({

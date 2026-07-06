@@ -57,6 +57,30 @@ const envSchema = z
       authToken: z.string().trim().optional(),
       fromNumber: z.string().trim().optional(),
     }),
+    storage: z.object({
+      // S3 is optional. Leave bucket/keys unset to run without file storage —
+      // the app boots fine and only the /files endpoints report 503.
+      region: z.string().trim().min(1).default('us-east-1'),
+      bucket: z.string().trim().min(1).optional(),
+      accessKeyId: z.string().trim().min(1).optional(),
+      secretAccessKey: z.string().trim().min(1).optional(),
+      // Custom endpoint for S3-compatible stores (e.g. LocalStack). Unset =>
+      // real AWS S3. forcePathStyle must be true for most non-AWS stores.
+      endpoint: z.url().optional(),
+      forcePathStyle: z.coerce.boolean().default(false),
+      // Public base URL (CDN or bucket website) for PUBLIC objects; unset falls
+      // back to a presigned GET even for public files.
+      publicBaseUrl: z.url().optional(),
+      uploadUrlTtlSeconds: z.coerce.number().int().positive().default(900),
+      downloadUrlTtlSeconds: z.coerce.number().int().positive().default(900),
+      // Hard ceiling on a single upload (DoS guard, enforced on the presign
+      // request and mirrored in the DTO bound).
+      maxUploadBytes: z.coerce
+        .number()
+        .int()
+        .positive()
+        .default(10 * 1024 * 1024),
+    }),
     observability: z.object({
       // service.name comes from app.name (APP_NAME); service.version is derived
       // at boot from SERVICE_VERSION (optional override) or package.json#version.
@@ -140,6 +164,24 @@ const envSchema = z
       });
     }
 
+    if (
+      cfg.storage.secretAccessKey &&
+      hasWeakMarker(cfg.storage.secretAccessKey)
+    ) {
+      console.warn(
+        'WARNING: S3_SECRET_ACCESS_KEY looks like a placeholder. Use a real IAM secret.',
+      );
+    }
+
+    if (
+      cfg.storage.endpoint &&
+      /(localhost|127\.0\.0\.1)/i.test(cfg.storage.endpoint)
+    ) {
+      console.warn(
+        'WARNING: S3_ENDPOINT points to localhost in production. Point it at AWS S3 (unset) or your production object store.',
+      );
+    }
+
     if (/(localhost|127\.0\.0\.1)/i.test(cfg.app.frontendUrl)) {
       console.warn(
         'WARNING: FRONTEND_URL points to localhost in production. Set the real frontend URL.',
@@ -194,6 +236,18 @@ export default () =>
       accountSid: process.env.TWILIO_ACCOUNT_SID,
       authToken: process.env.TWILIO_AUTH_TOKEN,
       fromNumber: process.env.TWILIO_FROM_NUMBER,
+    },
+    storage: {
+      region: process.env.S3_REGION,
+      bucket: process.env.S3_BUCKET,
+      accessKeyId: process.env.S3_ACCESS_KEY_ID,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      endpoint: process.env.S3_ENDPOINT,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE,
+      publicBaseUrl: process.env.S3_PUBLIC_BASE_URL,
+      uploadUrlTtlSeconds: process.env.S3_UPLOAD_URL_TTL_SECONDS,
+      downloadUrlTtlSeconds: process.env.S3_DOWNLOAD_URL_TTL_SECONDS,
+      maxUploadBytes: process.env.S3_MAX_UPLOAD_BYTES,
     },
     observability: {
       logLevel: process.env.LOG_LEVEL,

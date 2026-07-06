@@ -10,9 +10,11 @@ import { CryptoModule } from '@/common/crypto/crypto.module';
 import { QueueModule } from '@/infrastructure/queue/queue.module';
 import { MailerModule } from '@/infrastructure/mailer/mailer.module';
 import { SmsModule } from '@/infrastructure/sms/sms.module';
+import { StorageModule } from '@/infrastructure/storage/storage.module';
 import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 import { HealthModule } from '@/core/health/health.module';
 import { AuthModule } from '@/core/auth/auth.module';
+import { FilesModule } from '@/core/files/files.module';
 
 @Module({
   imports: [
@@ -40,8 +42,10 @@ import { AuthModule } from '@/core/auth/auth.module';
     QueueModule,
     MailerModule,
     SmsModule,
+    StorageModule,
     AuthModule,
     FcmTokenModule,
+    FilesModule,
     HealthModule,
   ],
   controllers: [],

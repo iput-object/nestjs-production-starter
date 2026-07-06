@@ -35,7 +35,7 @@ Part B rules grouped by category. Each links to the inline anchor below:
 | Performance | [R21 perf-async-hooks](#r21), [R22 perf-lazy-loading](#r22), [R23 perf-optimize-database](#r23), [R24 perf-use-caching](#r24) |
 | Testing | [R25 test-e2e-supertest](#r25), [R26 test-mock-external-services](#r26), [R27 test-use-testing-module](#r27) |
 | Database | [R28 db-avoid-n-plus-one](#r28), [R29 db-use-migrations](#r29), [R30 db-use-transactions](#r30) |
-| API | [R31 api-use-dto-serialization](#r31), [R32 api-use-interceptors](#r32), [R33 api-use-pipes](#r33), [R34 api-versioning](#r34) |
+| API | [R31 api-use-dto-serialization](#r31), [R32 api-use-interceptors](#r32), [R33 api-use-pipes](#r33), [R34 api-versioning](#r34), [R41 api-use-presigned-urls](#r41) |
 | Microservices | [R35 micro-use-health-checks](#r35), [R36 micro-use-patterns](#r36), [R37 micro-use-queues](#r37) |
 | DevOps | [R38 devops-graceful-shutdown](#r38), [R39 devops-use-config-module](#r39), [R40 devops-use-logging](#r40) |
 
@@ -227,6 +227,15 @@ Backing principles: [R27](#r27), [R25](#r25), [R26](#r26), [R29](#r29).
 - Default: **no comments**. Code with clear names doesn't need them.
 - Write a comment only when the WHY is non-obvious — e.g. the OTel boot-order comment in `main.ts`, or the placeholder-secret comment in `environment.config.ts`. If removing the comment wouldn't confuse a future reader, don't write it.
 - Don't reference issues, PRs, or "added for X flow" in comments — that belongs in commit messages.
+
+## 18. File uploads & storage
+
+Backing principles: [R41](#r41), [R4](#r4).
+
+- Do not handle binary file uploads directly through the NestJS server. Instead, use presigned URLs (signature links).
+- **Uploads:** Create an endpoint that generates and returns a presigned upload URL for the client to push the file directly to cloud storage (e.g., AWS S3). 
+- **Downloads:** When serving private files, generate a presigned download URL instead of streaming the file bytes through the API.
+- This keeps the Node.js event loop free of I/O blocking and saves server bandwidth.
 
 ---
 
@@ -704,6 +713,22 @@ app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 ```
 
 Add deprecation headers (`Deprecation`, `Sunset`, `Link: rel="successor-version"`) on the old version.
+
+### R41 — api-use-presigned-urls {#r41}
+
+Never accept multipart file uploads directly through the Node.js server. Generate a presigned URL and let the client upload directly to storage (S3/GCS).
+
+```ts
+// BAD: @UseInterceptors(FileInterceptor('file')) uploadFile(@UploadedFile() file) { ... }
+// GOOD:
+@Post('upload-url')
+async getUploadUrl(@Body() dto: GetUploadUrlDto) {
+  const url = await this.s3.createPresignedPost(dto.filename);
+  return { uploadUrl: url };
+}
+```
+
+This keeps your API stateless, reduces bandwidth, and prevents the Node.js event loop from stalling on large binary streams. Do the same for private file downloads.
 
 ## Microservices (MEDIUM)
 

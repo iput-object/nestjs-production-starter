@@ -4,6 +4,7 @@ import error from './error.json';
 import logging from './logging.json';
 import auth from './auth.json';
 import fcm from './fcm.json';
+import files from './files.json';
 //
 //
 //
@@ -30,4 +31,5 @@ export default withFallback({
   logging,
   auth,
   fcm,
+  files,
 });

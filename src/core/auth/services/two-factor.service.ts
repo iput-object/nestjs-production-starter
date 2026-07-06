@@ -172,9 +172,7 @@ export class TwoFactorService {
   async regenerateBackupCodes(userId: string): Promise<BackupCodesResult> {
     const enabled = await this.twoFactor.findEnabledForUser(userId);
     if (enabled.length === 0) {
-      throw new ConflictException(
-        locals.auth.enable_2fa_before_backup_codes,
-      );
+      throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
     }
     return { codes: await this.replaceBackupCodes(userId) };
   }
