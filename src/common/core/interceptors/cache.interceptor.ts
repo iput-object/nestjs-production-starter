@@ -41,6 +41,10 @@ export class CacheInterceptor implements NestInterceptor {
       context.getHandler(),
       context.getClass(),
     ]);
+    if (ttl === undefined) {
+      return next.handle();
+    }
+
     const cacheKey = customKey ?? `http-cache:${request.originalUrl}`;
 
     return from(this.redisService.get<unknown>(cacheKey)).pipe(
