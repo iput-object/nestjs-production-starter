@@ -29,10 +29,12 @@ import { ChangeContactService } from '@/core/auth/services/change-contact.servic
 import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 
 @Module({
   imports: [
     ConfigModule,
+    FcmTokenModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

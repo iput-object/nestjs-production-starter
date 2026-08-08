@@ -1,5 +1,4 @@
 {
-  "token_registered": "FCM token registered successfully",
-  "token_removed": "FCM token removed successfully",
-  "token_not_found": "FCM token not found"
+  "token_synced": "FCM token synced successfully",
+  "token_removed": "FCM token removed successfully"
 }

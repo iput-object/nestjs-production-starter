@@ -35,10 +35,26 @@ const otelMixin = (): Record<string, string> => {
   };
 };
 
+const accessLine = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  responseTime?: number,
+): string => {
+  const method = req.method ?? '?';
+  const url = req.url ?? '?';
+  const status = res.statusCode;
+  const ms =
+    typeof responseTime === 'number' ? ` ${Math.round(responseTime)}ms` : '';
+  return `${method} ${url} ${status}${ms}`;
+};
+
 /**
  * Build the nestjs-pino options object. Pretty transport is only enabled in
  * non-production environments — production emits raw JSON for log
  * shippers to parse.
+ *
+ * Terminal (pino-pretty) is compact one-liners; the OTEL transport still
+ * receives the full structured record (req/res/trace ids via mixin).
  */
 export const buildLoggerOptions = (config: LoggerConfigSlice): Params => {
   const isProduction = config.app.nodeEnv === 'production';
@@ -64,6 +80,16 @@ export const buildLoggerOptions = (config: LoggerConfigSlice): Params => {
       customProps: () => ({
         service: serviceName,
       }),
+      customLogLevel: (_req, res, err) => {
+        if (err || res.statusCode >= 500) return 'error';
+        if (res.statusCode >= 400) return 'warn';
+        return 'info';
+      },
+      customSuccessMessage: (req, res, responseTime) =>
+        accessLine(req, res, responseTime),
+      // pino-http also passes responseTime as a 4th arg at runtime.
+      customErrorMessage: (req, res, _err, responseTime?: number) =>
+        accessLine(req, res, responseTime),
       serializers: {
         req: (
           req: IncomingMessage & { id?: string; raw?: IncomingMessage },
@@ -85,9 +111,11 @@ export const buildLoggerOptions = (config: LoggerConfigSlice): Params => {
               level,
               options: {
                 colorize: true,
-                singleLine: false,
+                singleLine: true,
                 translateTime: 'SYS:HH:MM:ss.l',
-                ignore: 'pid,hostname,service',
+                // Pretty-only: keep terminal clean. OTEL still gets these fields.
+                ignore:
+                  'pid,hostname,service,trace_id,span_id,trace_flags,req,res,responseTime',
               },
             };
 

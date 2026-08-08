@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
-import { FcmTokenService } from '@/core/fcm-token/fcm-token.service';
+import { RegisterFcmTokenService } from '@/core/fcm-token/services/register-fcm-token.service';
+import { RemoveFcmTokenService } from '@/core/fcm-token/services/remove-fcm-token.service';
 import { RegisterFcmTokenDto } from '@/core/fcm-token/dto/register-fcm-token.dto';
 import { RemoveFcmTokenDto } from '@/core/fcm-token/dto/remove-fcm-token.dto';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
@@ -12,22 +13,34 @@ import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 @UseGuards(JwtAuthGuard)
 @TokenType('access')
 export class FcmTokenController {
-  constructor(private readonly fcmTokenService: FcmTokenService) {}
+  constructor(
+    private readonly registerFcmToken: RegisterFcmTokenService,
+    private readonly removeFcmToken: RemoveFcmTokenService,
+  ) {}
 
-  /** Register an FCM device token */
   @Post()
-  @ApiOperation({ summary: 'Register an FCM device token' })
+  @ApiOperation({
+    summary: 'Sync an FCM device token',
+    description:
+      'Idempotent upsert keyed by deviceId (and unique FCM token). Call after login, on app foreground, and whenever the FCM SDK rotates the token. Persist a stable deviceId per install.',
+  })
   register(
     @CurrentUser() user: JwtPayload,
     @Body() payload: RegisterFcmTokenDto,
   ) {
-    return this.fcmTokenService.registerToken(payload, user.sub);
+    return this.registerFcmToken.execute(payload, user.sub);
   }
 
-  /** Remove an FCM device token */
   @Delete()
-  @ApiOperation({ summary: 'Remove an FCM device token' })
-  remove(@Body() payload: RemoveFcmTokenDto) {
-    return this.fcmTokenService.removeToken(payload);
+  @ApiOperation({
+    summary: 'Remove an FCM device token',
+    description:
+      'Best-effort unregister for the current user (e.g. on logout). Always returns removed=true; only deletes a token owned by the caller.',
+  })
+  remove(
+    @CurrentUser() user: JwtPayload,
+    @Body() payload: RemoveFcmTokenDto,
+  ) {
+    return this.removeFcmToken.execute(payload, user.sub);
   }
 }

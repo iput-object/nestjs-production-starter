@@ -26,3 +26,9 @@ enum TwoFactorMethodType {
   EMAIL_OTP
   SMS_OTP
 }
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}

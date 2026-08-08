@@ -23,6 +23,7 @@ model Session {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmTokens FcmToken[]
 
   @@index([userId])
   @@map("sessions")

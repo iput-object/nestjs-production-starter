@@ -5,6 +5,7 @@ import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
+import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repository';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import type {
   AuthTokens,
@@ -22,6 +23,7 @@ export class TokenService {
     private readonly crypto: CryptoService,
     private readonly cache: AuthCacheService,
     private readonly sessions: SessionRepository,
+    private readonly fcmTokens: FcmTokenRepository,
   ) {}
 
   async issue(
@@ -112,6 +114,7 @@ export class TokenService {
     await Promise.all(
       sessions.map((s) => this.cache.deleteSessionMirror(s.refreshTokenHash)),
     );
+    await this.fcmTokens.deleteAllForUser(userId);
   }
 
   signAccessToken(userId: string): Promise<string> {

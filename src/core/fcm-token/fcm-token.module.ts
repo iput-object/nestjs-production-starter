@@ -1,10 +1,16 @@
 import { Module } from '@nestjs/common';
 import { FcmTokenController } from '@/core/fcm-token/fcm-token.controller';
-import { FcmTokenService } from '@/core/fcm-token/fcm-token.service';
+import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repository';
+import { RegisterFcmTokenService } from '@/core/fcm-token/services/register-fcm-token.service';
+import { RemoveFcmTokenService } from '@/core/fcm-token/services/remove-fcm-token.service';
 
 @Module({
   controllers: [FcmTokenController],
-  providers: [FcmTokenService],
-  exports: [FcmTokenService],
+  providers: [
+    FcmTokenRepository,
+    RegisterFcmTokenService,
+    RemoveFcmTokenService,
+  ],
+  exports: [FcmTokenRepository],
 })
 export class FcmTokenModule {}

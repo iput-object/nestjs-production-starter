@@ -1,10 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 
 export enum DevicePlatform {
@@ -23,9 +23,9 @@ export class RegisterFcmTokenDto {
   @IsEnum(DevicePlatform)
   platform!: DevicePlatform;
 
-  @IsOptional()
-  @Transform(({ value }: { value?: string }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   @IsString()
+  @MinLength(1)
   @MaxLength(255)
-  deviceId?: string;
+  deviceId!: string;
 }

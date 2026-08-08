@@ -17,6 +17,7 @@ model User {
   profile              Profile?
   credentials          Credential[]
   sessions             Session[]
+  fcmTokens            FcmToken[]
   twoFactorMethods     TwoFactorMethod[]
   twoFactorBackupCodes TwoFactorBackupCode[]
 
