@@ -25,12 +25,12 @@ import { FilesModule } from '@/core/files/files.module';
     ObservabilityModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Config>) => {
-        const config = configService.get('app');
+      useFactory: (configService: ConfigService<Config, true>) => {
+        const config = configService.getOrThrow('app', { infer: true });
         return [
           {
-            ttl: config?.rateLimitTtl ?? 60,
-            limit: config?.rateLimitLimit ?? 100,
+            ttl: config.rateLimitTtl,
+            limit: config.rateLimitLimit,
           },
         ];
       },
