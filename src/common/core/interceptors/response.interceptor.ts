@@ -60,7 +60,7 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
             success: true,
             message:
               message ??
-              response.locals?.message ??
+              response.locals.message ??
               this.defaultMessage(statusCode, request.method),
             statusCode,
             ...(data !== undefined && { data }),
@@ -73,7 +73,7 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
         return {
           success: true,
           message:
-            response.locals?.message ??
+            response.locals.message ??
             this.defaultMessage(statusCode, request.method),
           statusCode,
           ...(returned !== undefined &&
@@ -84,11 +84,11 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
   }
 
   private defaultMessage(statusCode: number, method: string): string {
-    if (statusCode === HttpStatus.CREATED) {
+    if (statusCode === 201) {
       return locals.response.resource_created_successfully;
     }
 
-    if (statusCode === HttpStatus.NO_CONTENT) {
+    if (statusCode === 204) {
       return locals.response.no_content;
     }
 
