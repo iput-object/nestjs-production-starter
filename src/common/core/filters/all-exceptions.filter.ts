@@ -79,7 +79,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     // Unknown errors → never leak internals in production.
-    if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR && isProduction) {
+    if (statusCode >= 500 && isProduction) {
       return PRODUCTION_GENERIC_5XX;
     }
 
@@ -116,7 +116,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: Array.isArray(message) ? message.join(', ') : message,
     };
 
-    if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (statusCode >= 500) {
       this.logger.error({ ...ctx, err: exception }, 'Unhandled exception');
     } else {
       this.logger.warn(ctx, 'Handled HTTP exception');
