@@ -9,7 +9,12 @@ const envSchema = z
         .enum(['development', 'production', 'test'])
         .default('development'),
       debug: z.boolean().default(false),
-      url: z.url().optional(),
+      url: z
+        .string()
+        .trim()
+        .optional()
+        .transform((value) => value || undefined)
+        .pipe(z.url().optional()),
       frontendUrl: z.url().default('http://localhost:5173'),
       rateLimitTtl: z.coerce.number().int().positive().default(60),
       rateLimitLimit: z.coerce.number().int().positive().default(100),
@@ -66,11 +71,21 @@ const envSchema = z
       secretAccessKey: z.string().trim().min(1).optional(),
       // Custom endpoint for S3-compatible stores (e.g. LocalStack). Unset =>
       // real AWS S3. forcePathStyle must be true for most non-AWS stores.
-      endpoint: z.url().optional(),
+      endpoint: z
+        .string()
+        .trim()
+        .optional()
+        .transform((value) => value || undefined)
+        .pipe(z.url().optional()),
       forcePathStyle: z.coerce.boolean().default(false),
       // Public base URL (CDN or bucket website) for PUBLIC objects; unset falls
       // back to a presigned GET even for public files.
-      publicBaseUrl: z.url().optional(),
+      publicBaseUrl: z
+        .string()
+        .trim()
+        .optional()
+        .transform((value) => value || undefined)
+        .pipe(z.url().optional()),
       uploadUrlTtlSeconds: z.coerce.number().int().positive().default(900),
       downloadUrlTtlSeconds: z.coerce.number().int().positive().default(900),
       // Hard ceiling on a single upload (DoS guard, enforced on the presign
