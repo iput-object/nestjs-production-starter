@@ -2,7 +2,11 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/configs/environment.config';
-import { MAIL_QUEUE, SMS_QUEUE } from '@/infrastructure/queue/queue.constants';
+import {
+  AUDIT_QUEUE,
+  MAIL_QUEUE,
+  SMS_QUEUE,
+} from '@/infrastructure/queue/queue.constants';
 
 @Global()
 @Module({
@@ -16,7 +20,6 @@ import { MAIL_QUEUE, SMS_QUEUE } from '@/infrastructure/queue/queue.constants';
         }
         return {
           connection: {
-            // ioredis accepts a URL via connection.url in BullMQ v5
             url: redis.url,
           },
           prefix: `${redis.keyPrefix}bull`,
@@ -29,7 +32,11 @@ import { MAIL_QUEUE, SMS_QUEUE } from '@/infrastructure/queue/queue.constants';
         };
       },
     }),
-    BullModule.registerQueue({ name: MAIL_QUEUE }, { name: SMS_QUEUE }),
+    BullModule.registerQueue(
+      { name: MAIL_QUEUE },
+      { name: SMS_QUEUE },
+      { name: AUDIT_QUEUE },
+    ),
   ],
   exports: [BullModule],
 })

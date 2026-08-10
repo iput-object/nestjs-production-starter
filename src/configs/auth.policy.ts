@@ -9,18 +9,22 @@
 export const AUTH_POLICY = Object.freeze({
   loginMaxFails: 10,
   loginLockoutTtlSeconds: 900,
-  passwordResetTtlSeconds: 180,
-  resetRequestTtlSeconds: 600,
-  emailVerifyTtlSeconds: 180,
+  passwordResetTtlSeconds: 600,
+  /** How long the recovery-channel picker challenge stays valid. */
+  passwordResetChallengeTtlSeconds: 600,
+  emailVerifyTtlSeconds: 600,
   twoFactorChallengeTtlSeconds: 180,
+  identifierChangeTtlSeconds: 600,
+  /** Soft-deleted identifiers become reclaimable after this grace period. */
+  identifierReclaimGraceSeconds: 30 * 24 * 3600,
 });
 
 export const OTP_POLICY = Object.freeze({
   length: 6,
   maxAttempts: 5,
   resendCooldownSeconds: 60,
-  emailTtlSeconds: 180,
-  smsTtlSeconds: 180,
+  emailTtlSeconds: 600,
+  smsTtlSeconds: 600,
   // Per-destination send ceiling within a rolling window (abuse / enumeration).
   maxSendsPerWindow: 5,
   sendThrottleWindowSeconds: 3600,

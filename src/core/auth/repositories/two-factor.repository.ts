@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { TwoFactorBackupCode, TwoFactorMethod } from '@prisma-client';
-import type { TwoFactorMethodType } from '@prisma-client';
+import type { TwoFactorMethodTypeValue } from '@/core/auth/constants/two-factor-method.constants';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface UpsertMethodInput {
   userId: string;
-  type: TwoFactorMethodType;
+  type: TwoFactorMethodTypeValue;
   secret?: string | null;
   destination?: string | null;
 }
@@ -33,7 +33,7 @@ export class TwoFactorRepository {
 
   findByUserAndType(
     userId: string,
-    type: TwoFactorMethodType,
+    type: TwoFactorMethodTypeValue,
   ): Promise<TwoFactorMethod | null> {
     return this.prisma.twoFactorMethod.findUnique({
       where: { userId_type: { userId, type } },

@@ -14,6 +14,7 @@ import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { RegisterService } from '@/core/auth/services/register.service';
 import { LoginService } from '@/core/auth/services/login.service';
 import { TokenService } from '@/core/auth/services/token.service';
@@ -26,9 +27,14 @@ import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import { ChangeContactService } from '@/core/auth/services/change-contact.service';
-import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
+import { IdentifierService } from '@/core/auth/services/identifier.service';
+import { SessionService } from '@/core/auth/services/session.service';
+import { OAuthService } from '@/core/auth/services/oauth.service';
+import { AccountLifecycleService } from '@/core/auth/services/account-lifecycle.service';
+import { StepUpService } from '@/core/auth/services/step-up.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 
 @Module({
@@ -54,11 +60,13 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     JwtStrategy,
     JwtRefreshStrategy,
     JwtAuthGuard,
+    VerifiedGuard,
     AuthCacheService,
     UserRepository,
     CredentialRepository,
     SessionRepository,
     TwoFactorRepository,
+    IdentifierRepository,
     RegisterService,
     LoginService,
     TokenService,
@@ -71,7 +79,11 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     TotpService,
     TwoFactorService,
     ChangeContactService,
-    PhoneVerifyService,
+    IdentifierService,
+    SessionService,
+    OAuthService,
+    AccountLifecycleService,
+    StepUpService,
     DevSecretLogger,
     AuthControllerHelper,
     OtpGeneratorHelper,
@@ -85,6 +97,10 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     CredentialRepository,
     SessionRepository,
     TwoFactorRepository,
+    IdentifierRepository,
+    AccountLifecycleService,
+    JwtAuthGuard,
+    VerifiedGuard,
   ],
 })
 export class AuthModule {}

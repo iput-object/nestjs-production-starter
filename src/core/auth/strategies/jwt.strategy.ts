@@ -1,19 +1,25 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { UserStatus } from '@prisma-client';
 import type { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Config } from '@/configs/environment.config';
 import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import locals from '@/locals';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(configService: ConfigService<Config>) {
+  constructor(
+    configService: ConfigService<Config>,
+    private readonly users: UserRepository,
+    private readonly identifiers: IdentifierRepository,
+  ) {
     const auth = configService.get<Config['auth']>('auth');
     super({
-      // One door, two keys: mobile sends a bearer header, web sends the cookie.
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
         (req: Request) =>
@@ -24,11 +30,20 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  validate(payload: JwtPayload): JwtPayload {
+  async validate(payload: JwtPayload): Promise<JwtPayload> {
     if (payload.tokenType !== 'access') {
       throw new UnauthorizedException(locals.auth.access_token_required);
     }
 
-    return payload;
+    const user = await this.users.findById(payload.sub);
+    if (!user || user.isDeleted || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(locals.auth.account_no_longer_available);
+    }
+
+    const isAccountVerified = await this.identifiers.isAccountVerified(
+      payload.sub,
+    );
+
+    return { ...payload, isAccountVerified };
   }
 }

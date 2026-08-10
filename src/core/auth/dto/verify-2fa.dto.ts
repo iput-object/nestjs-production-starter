@@ -1,13 +1,16 @@
-import { TwoFactorMethodType } from '@prisma-client';
-import { IsEnum, IsString, Matches, MinLength } from 'class-validator';
+import { IsIn, IsString, Matches, MinLength } from 'class-validator';
+import {
+  TWO_FACTOR_METHOD_TYPES,
+  type TwoFactorMethodTypeValue,
+} from '@/core/auth/constants/two-factor-method.constants';
 
 export class TwoFactorChallengeVerifyDto {
   @IsString()
   @MinLength(10)
   challengeId!: string;
 
-  @IsEnum(TwoFactorMethodType)
-  type!: TwoFactorMethodType;
+  @IsIn(TWO_FACTOR_METHOD_TYPES)
+  type!: TwoFactorMethodTypeValue;
 
   @IsString()
   @Matches(/^[A-Za-z0-9-]{4,32}$/)
@@ -19,6 +22,6 @@ export class TwoFactorChallengeSendDto {
   @MinLength(10)
   challengeId!: string;
 
-  @IsEnum(TwoFactorMethodType)
-  type!: TwoFactorMethodType;
+  @IsIn(TWO_FACTOR_METHOD_TYPES)
+  type!: TwoFactorMethodTypeValue;
 }

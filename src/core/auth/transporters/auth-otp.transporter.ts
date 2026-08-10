@@ -25,6 +25,7 @@ export enum AuthMailType {
   LOGIN = 'login',
   ENROLL_2FA = 'enroll-2fa',
   CHANGE_EMAIL = 'change-email',
+  CHANGE_PHONE = 'change-phone',
 }
 
 export enum TransportType {
@@ -212,6 +213,19 @@ export class AuthOtpTransporter {
             expiry && `<p>${expiry}</p>`,
           ]),
         };
+      case AuthMailType.CHANGE_PHONE:
+        return {
+          subject: 'Confirm your phone number',
+          text: this.join([
+            code && `Your phone confirmation code is ${code}.`,
+            expiry,
+          ]),
+          html: this.join([
+            code &&
+              `<p>Your phone confirmation code is <strong>${code}</strong>.</p>`,
+            expiry && `<p>${expiry}</p>`,
+          ]),
+        };
     }
   }
 
@@ -241,6 +255,11 @@ export class AuthOtpTransporter {
           [`Your email change confirmation ${secret}.`, expiry],
           ' ',
         );
+      case AuthMailType.CHANGE_PHONE:
+        return this.join(
+          [`Your phone confirmation ${secret}.`, expiry],
+          ' ',
+        );
     }
   }
 
@@ -257,6 +276,8 @@ export class AuthOtpTransporter {
         return 'reset-password';
       case AuthMailType.CHANGE_EMAIL:
         return 'confirm-email';
+      case AuthMailType.CHANGE_PHONE:
+        return 'confirm-phone';
       case AuthMailType.LOGIN:
         return 'login';
       case AuthMailType.WELCOME:

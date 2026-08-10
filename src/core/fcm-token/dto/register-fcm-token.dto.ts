@@ -1,17 +1,15 @@
 import { Transform } from 'class-transformer';
 import {
-  IsEnum,
+  IsIn,
   IsString,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-
-export enum DevicePlatform {
-  IOS = 'ios',
-  ANDROID = 'android',
-  WEB = 'web',
-}
+import {
+  DEVICE_PLATFORM_API_VALUES,
+  type DevicePlatformApiValue,
+} from '@/core/fcm-token/constants/device-platform.constants';
 
 export class RegisterFcmTokenDto {
   @Transform(({ value }: { value: string }) => value?.trim())
@@ -20,8 +18,8 @@ export class RegisterFcmTokenDto {
   @MaxLength(1024)
   token!: string;
 
-  @IsEnum(DevicePlatform)
-  platform!: DevicePlatform;
+  @IsIn(DEVICE_PLATFORM_API_VALUES)
+  platform!: DevicePlatformApiValue;
 
   @Transform(({ value }: { value: string }) => value?.trim())
   @IsString()

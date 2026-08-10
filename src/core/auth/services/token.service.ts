@@ -1,10 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { UserStatus } from '@prisma-client';
 import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
+import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repository';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import type {
@@ -23,6 +25,7 @@ export class TokenService {
     private readonly crypto: CryptoService,
     private readonly cache: AuthCacheService,
     private readonly sessions: SessionRepository,
+    private readonly users: UserRepository,
     private readonly fcmTokens: FcmTokenRepository,
   ) {}
 
@@ -50,6 +53,8 @@ export class TokenService {
       expiresAt: refreshExpiresAt,
       ipAddress: context.ip ?? null,
       userAgent: context.userAgent ?? null,
+      deviceId: context.deviceId ?? null,
+      deviceLabel: context.deviceLabel ?? null,
     });
 
     await this.cache.setSessionMirror(
@@ -80,6 +85,13 @@ export class TokenService {
     if (payload.tokenType !== 'refresh') {
       throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
+
+    const user = await this.users.findById(payload.sub);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      await this.revokeAllForUser(payload.sub);
+      throw new UnauthorizedException(locals.auth.account_no_longer_available);
+    }
+
     return this.rotate(payload.sub, presentedRefreshToken, context);
   }
 
@@ -91,9 +103,10 @@ export class TokenService {
     const presentedHash = this.crypto.hashSha256(presentedRefreshToken);
     const session = await this.sessions.findActiveByHash(presentedHash);
     if (!session || session.userId !== userId) {
-      // Treat reuse/missing as catastrophic — revoke all sessions for the user.
-      await this.sessions.revokeAllForUser(userId);
-      throw new Error('Refresh token invalid');
+      // Treat reuse/missing as catastrophic — revoke all sessions for the user
+      // (DB + Redis mirrors + FCM), not just DB rows.
+      await this.revokeAllForUser(userId);
+      throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
 
     await this.sessions.revokeByHash(presentedHash);

@@ -1,0 +1,83 @@
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { UserStatus } from '@prisma-client';
+import { AUTH_POLICY } from '@/configs/auth.policy';
+import { AuditService } from '@/common/audit/services/audit.service';
+import {
+  AUTH_AUDIT_MODULE,
+  AUTH_AUDIT_RESOURCE,
+  AuthAuditAction,
+} from '@/core/auth/constants/auth-audit.constants';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { UserRepository } from '@/core/auth/repositories/user.repository';
+import { StepUpService } from '@/core/auth/services/step-up.service';
+import { TokenService } from '@/core/auth/services/token.service';
+import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
+import locals from '@/locals';
+
+@Injectable()
+export class AccountLifecycleService {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly identifiers: IdentifierRepository,
+    private readonly tokens: TokenService,
+    private readonly stepUp: StepUpService,
+    private readonly audit: AuditService,
+  ) {}
+
+  async deactivate(
+    userId: string,
+    currentPassword: string,
+    context: RequestContext = {},
+  ): Promise<void> {
+    await this.stepUp.requirePassword(userId, currentPassword);
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException(locals.auth.user_not_found);
+    }
+
+    await this.users.softDelete(userId);
+    await this.tokens.revokeAllForUser(userId);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.ACCOUNT_DEACTIVATED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: userId,
+      context,
+    });
+  }
+
+  async setStatus(
+    userId: string,
+    status: UserStatus,
+    reason?: string,
+  ): Promise<void> {
+    const user = await this.users.findByIdIncludingDeleted(userId);
+    if (!user) {
+      throw new NotFoundException(locals.auth.user_not_found);
+    }
+    await this.users.updateStatus(userId, status, reason);
+    if (status !== UserStatus.ACTIVE) {
+      await this.tokens.revokeAllForUser(userId);
+    }
+  }
+
+  async reclaimIdentifiers(): Promise<{ reclaimed: number }> {
+    const cutoff = new Date(
+      Date.now() - AUTH_POLICY.identifierReclaimGraceSeconds * 1000,
+    );
+    const reclaimed = await this.identifiers.reclaimOrphaned(cutoff);
+    return { reclaimed };
+  }
+
+  async assertActive(userId: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(locals.auth.account_no_longer_available);
+    }
+  }
+}

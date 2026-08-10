@@ -5,6 +5,7 @@ import configuration, { Config } from '@/configs/environment.config';
 import { ObservabilityModule } from '@/infrastructure/observability/observability.module';
 import { PrismaModule } from '@/database/prisma.module';
 import { CommonModule } from '@/common/common.module';
+import { AuditModule } from '@/common/audit/audit.module';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
 import { CryptoModule } from '@/common/crypto/crypto.module';
 import { QueueModule } from '@/infrastructure/queue/queue.module';
@@ -43,6 +44,7 @@ import { FilesModule } from '@/core/files/files.module';
     MailerModule,
     SmsModule,
     StorageModule,
+    AuditModule,
     AuthModule,
     FcmTokenModule,
     FilesModule,

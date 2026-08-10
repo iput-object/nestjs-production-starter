@@ -1,14 +1,38 @@
+// ============================================================
+// common/activity.prisma
+//
+// Centralized audit log for every feature module (auth, files,
+// orders, billing, …). One table; filter by module / resource.
+//
+// action is module-local (e.g. "login.success") — never prefix
+// the module name into action; use the `module` column instead.
+// ============================================================
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
 model Activity {
-  id        String  @id @default(uuid())
-  userId    String? // null = system action
-  action    String // dot-namespaced: "resource.verb"
-  metadata  Json? // { ip, userAgent, targetId, ... }
-  ipAddress String?
+  id           String       @id @default(uuid())
+  module       String // feature key: auth | files | orders | …
+  action       String // verb within module: login.success | order.created
+  outcome      AuditOutcome @default(SUCCESS)
+  userId       String? // actor; null = system
+  resourceType String? // polymorphic target type: user | order | file
+  resourceId   String? // polymorphic target id
+  ipAddress    String?
+  userAgent    String?
+  requestId    String? // request / trace correlation id
+  metadata     Json?
 
   createdAt DateTime @default(now())
 
-  @@index([userId])
-  @@index([action])
+  @@index([module, action, createdAt])
+  @@index([module, createdAt])
+  @@index([userId, createdAt])
+  @@index([resourceType, resourceId, createdAt])
   @@index([createdAt])
   @@map("activities")
 }

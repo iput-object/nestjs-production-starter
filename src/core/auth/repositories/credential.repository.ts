@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { AuthProvider, Credential } from '@prisma-client';
+import type { Credential } from '@prisma-client';
+import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateCredentialInput {
   userId: string;
-  provider: AuthProvider;
+  provider: AuthProviderValue;
   providerId: string;
   passwordHash?: string | null;
 }
@@ -14,7 +15,7 @@ export class CredentialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findByProviderIdentity(
-    provider: AuthProvider,
+    provider: AuthProviderValue,
     providerId: string,
   ): Promise<Credential | null> {
     return this.prisma.credential.findUnique({
@@ -24,7 +25,7 @@ export class CredentialRepository {
 
   findByUserAndProvider(
     userId: string,
-    provider: AuthProvider,
+    provider: AuthProviderValue,
   ): Promise<Credential | null> {
     return this.prisma.credential.findUnique({
       where: { userId_provider: { userId, provider } },

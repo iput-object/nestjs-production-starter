@@ -1,15 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { AuthProvider, Role, User, UserStatus } from '@prisma-client';
+import type { Role, User } from '@prisma-client';
+import { IdentifierType, UserStatus } from '@prisma-client';
+import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 
 export interface CreateUserInput {
-  email?: string | null;
-  phone?: string | null;
   role?: Role;
   status?: UserStatus;
-  isEmailVerified?: boolean;
-  isPhoneVerified?: boolean;
 }
 
 @Injectable()
@@ -27,35 +25,29 @@ export class UserRepository {
       where: { id, isDeleted: false },
       select: {
         id: true,
-        email: true,
         role: true,
         profile: { select: { name: true, avatarUrl: true } },
+        identifiers: {
+          where: { type: IdentifierType.EMAIL, isPrimary: true },
+          select: { value: true, isVerified: true },
+          take: 1,
+        },
       },
     });
     if (!row) return null;
+    const primaryEmail = row.identifiers[0];
     return {
       id: row.id,
       name: row.profile?.name ?? null,
       avatar: row.profile?.avatarUrl ?? null,
-      email: row.email,
+      email: primaryEmail?.value ?? null,
       role: row.role,
+      isAccountVerified: primaryEmail?.isVerified ?? false,
     };
   }
 
-  findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
-      where: { email, isDeleted: false },
-    });
-  }
-
-  findByPhone(phone: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
-      where: { phone, isDeleted: false },
-    });
-  }
-
   findByProviderIdentity(
-    provider: AuthProvider,
+    provider: AuthProviderValue,
     providerId: string,
   ): Promise<User | null> {
     return this.prisma.user.findFirst({
@@ -66,35 +58,33 @@ export class UserRepository {
     });
   }
 
-  create(input: CreateUserInput): Promise<User> {
+  create(input: CreateUserInput = {}): Promise<User> {
     return this.prisma.user.create({ data: input });
   }
 
-  markEmailVerified(id: string): Promise<User> {
+  softDelete(id: string): Promise<User> {
     return this.prisma.user.update({
       where: { id },
-      data: { isEmailVerified: true },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        status: UserStatus.SUSPENDED,
+      },
     });
   }
 
-  markPhoneVerified(id: string): Promise<User> {
-    return this.prisma.user.update({
-      where: { id },
-      data: { isPhoneVerified: true },
-    });
+  findByIdIncludingDeleted(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
-  updateEmail(id: string, email: string): Promise<User> {
+  updateStatus(
+    id: string,
+    status: UserStatus,
+    reason?: string,
+  ): Promise<User> {
     return this.prisma.user.update({
       where: { id },
-      data: { email, isEmailVerified: false },
-    });
-  }
-
-  updatePhone(id: string, phone: string): Promise<User> {
-    return this.prisma.user.update({
-      where: { id },
-      data: { phone, isPhoneVerified: false },
+      data: { status, reason: reason ?? null },
     });
   }
 }

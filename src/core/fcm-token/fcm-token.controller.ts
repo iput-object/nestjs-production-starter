@@ -5,12 +5,13 @@ import { RemoveFcmTokenService } from '@/core/fcm-token/services/remove-fcm-toke
 import { RegisterFcmTokenDto } from '@/core/fcm-token/dto/register-fcm-token.dto';
 import { RemoveFcmTokenDto } from '@/core/fcm-token/dto/remove-fcm-token.dto';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { TokenType } from '@/core/auth/decorators/token-type.decorator';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 
 @Controller({ path: 'fcm-tokens', version: '1' })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VerifiedGuard)
 @TokenType('access')
 export class FcmTokenController {
   constructor(

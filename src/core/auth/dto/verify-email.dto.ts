@@ -19,6 +19,14 @@ export class ConfirmEmailVerificationOtpDto {
   code!: string;
 }
 
+/** Authenticated confirm — email is taken from the session user. */
+export class ConfirmEmailVerificationSessionOtpDto {
+  @IsString()
+  @MinLength(4)
+  @MaxLength(10)
+  code!: string;
+}
+
 export class ResendEmailVerificationDto {
   @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
   @IsEmail()

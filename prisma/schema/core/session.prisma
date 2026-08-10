@@ -17,12 +17,14 @@ model Session {
   refreshTokenHash String    @unique // SHA-256 hex of raw refresh token
   ipAddress        String?
   userAgent        String?
+  deviceId         String?
+  deviceLabel      String?
   expiresAt        DateTime
   revokedAt        DateTime? // null = active
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   fcmTokens FcmToken[]
 
   @@index([userId])

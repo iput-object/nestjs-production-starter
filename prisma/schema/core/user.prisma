@@ -1,12 +1,8 @@
 model User {
-  id              String     @id @default(uuid())
-  email           String?    @unique // nullable — Apple can hide email
-  phone           String?    @unique // optional — for OTP via SMS
-  role            Role       @default(USER)
-  status          UserStatus @default(ACTIVE)
-  reason          String?
-  isEmailVerified Boolean    @default(false)
-  isPhoneVerified Boolean    @default(false)
+  id     String     @id @default(uuid())
+  role   Role       @default(USER)
+  status UserStatus @default(ACTIVE)
+  reason String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -20,6 +16,7 @@ model User {
   fcmTokens            FcmToken[]
   twoFactorMethods     TwoFactorMethod[]
   twoFactorBackupCodes TwoFactorBackupCode[]
+  identifiers          UserIdentifier[]
 
   @@map("users")
 }

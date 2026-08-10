@@ -11,4 +11,6 @@ export interface AuthTokens {
 export interface RequestContext {
   ip?: string;
   userAgent?: string;
+  deviceId?: string;
+  deviceLabel?: string;
 }

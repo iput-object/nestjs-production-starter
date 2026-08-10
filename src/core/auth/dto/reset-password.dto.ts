@@ -1,11 +1,23 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class ForgotPasswordDto {
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
+  /** Email or phone used to find the account. */
+  @Transform(({ value }: { value: string }) => value?.trim())
+  @IsString()
+  @MinLength(3)
   @MaxLength(320)
-  email!: string;
+  identifier!: string;
+}
+
+export class SendPasswordResetOtpDto {
+  @IsString()
+  @MinLength(10)
+  resetId!: string;
+
+  @IsString()
+  @MinLength(10)
+  channelId!: string;
 }
 
 export class ResetPasswordDto {
@@ -20,10 +32,9 @@ export class ResetPasswordDto {
 }
 
 export class ResetPasswordByOtpDto {
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
-  @MaxLength(320)
-  email!: string;
+  @IsString()
+  @MinLength(10)
+  resetId!: string;
 
   @IsString()
   @MinLength(4)

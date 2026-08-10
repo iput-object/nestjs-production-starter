@@ -13,10 +13,10 @@
 // ============================================================
 
 model TwoFactorMethod {
-  id          String              @id @default(uuid())
+  id          String  @id @default(uuid())
   userId      String
-  type        TwoFactorMethodType
-  isEnabled   Boolean             @default(false)
+  type        String // TwoFactorMethodType in code
+  isEnabled   Boolean @default(false)
   isPrimary   Boolean             @default(false)
   secret      String? // TOTP only — AES-256-GCM (iv:tag:ciphertext)
   destination String? // email/phone snapshot at enrollment for OTP

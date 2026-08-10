@@ -3,7 +3,7 @@ model FcmToken {
   userId        String
   token         String
   deviceId      String
-  platform      DevicePlatform
+  platform      String // DevicePlatform in code
   lastSessionId String?
   lastSeenAt    DateTime     @default(now())
   createdAt     DateTime     @default(now())

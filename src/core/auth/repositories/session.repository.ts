@@ -8,6 +8,8 @@ export interface CreateSessionInput {
   expiresAt: Date;
   ipAddress?: string | null;
   userAgent?: string | null;
+  deviceId?: string | null;
+  deviceLabel?: string | null;
 }
 
 @Injectable()
@@ -50,6 +52,23 @@ export class SessionRepository {
         expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findActiveById(id: string): Promise<Session | null> {
+    return this.prisma.session.findFirst({
+      where: {
+        id,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+  }
+
+  revokeById(id: string): Promise<{ count: number }> {
+    return this.prisma.session.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
   }
 }

@@ -8,9 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 import { toDataURL } from 'qrcode';
 import type { User } from '@prisma-client';
-import { TwoFactorMethodType } from '@prisma-client';
+import { IdentifierType } from '@prisma-client';
+import { TwoFactorMethodType } from '@/core/auth/constants/two-factor-method.constants';
 import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import locals from '@/locals';
 
@@ -27,12 +29,25 @@ export class TotpService {
     private readonly config: ConfigService<Config>,
     private readonly crypto: CryptoService,
     private readonly twoFactor: TwoFactorRepository,
+    private readonly identifiers: IdentifierRepository,
   ) {}
 
   async enroll(user: User): Promise<TotpEnrollmentResult> {
+    const existing = await this.twoFactor.findByUserAndType(
+      user.id,
+      TwoFactorMethodType.TOTP,
+    );
+    if (existing?.isEnabled) {
+      throw new ConflictException(locals.auth.totp_already_enabled);
+    }
+
     const totp = this.config.get<Config['totp']>('totp')!;
     const secret = generateSecret();
-    const accountName = user.email ?? user.id;
+    const primaryEmail = await this.identifiers.findPrimary(
+      user.id,
+      IdentifierType.EMAIL,
+    );
+    const accountName = primaryEmail?.value ?? user.id;
 
     const encryptedSecret = this.crypto.encrypt(secret);
     const method = await this.twoFactor.upsert({

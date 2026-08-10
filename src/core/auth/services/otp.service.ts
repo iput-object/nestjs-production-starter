@@ -59,7 +59,7 @@ export class OtpService {
       input.channel,
       input.destination,
     );
-    if (throttle >= OTP_POLICY.maxAttempts) {
+    if (throttle >= OTP_POLICY.maxSendsPerWindow) {
       throw new HttpException(
         locals.auth.too_many_otp_requests_destination,
         HttpStatus.TOO_MANY_REQUESTS,
@@ -118,7 +118,7 @@ export class OtpService {
       input.channel,
       input.destination,
       throttle + 1,
-      Math.max(ttl, 60),
+      OTP_POLICY.sendThrottleWindowSeconds,
     );
 
     if (input.channel === 'email') {
@@ -195,6 +195,12 @@ export class OtpService {
         return 'Password reset code';
       case 'enroll-2fa':
         return 'Two-factor enrollment code';
+      case 'change-email':
+      case 'add-email':
+        return 'Confirm your email';
+      case 'add-phone':
+      case 'change-phone':
+        return 'Confirm your phone';
     }
   }
 }

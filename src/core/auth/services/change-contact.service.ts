@@ -4,113 +4,277 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AuthProvider } from '@prisma-client';
-import { Config } from '@/configs/environment.config';
+import { IdentifierType } from '@prisma-client';
+import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
-import { CryptoService } from '@/common/crypto/crypto.service';
 import { MAILER_PORT } from '@/infrastructure/mailer/mailer.constants';
 import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
-import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
-import { OtpService } from '@/core/auth/services/otp.service';
+import { AuditService } from '@/common/audit/services/audit.service';
+import {
+  AUTH_AUDIT_MODULE,
+  AUTH_AUDIT_RESOURCE,
+  AuthAuditAction,
+} from '@/core/auth/constants/auth-audit.constants';
+import {
+  normalizeEmail,
+  normalizePhone,
+} from '@/core/auth/helpers/normalize.helper';
+import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
-import { UserRepository } from '@/core/auth/repositories/user.repository';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { OtpSessionService } from '@/core/auth/services/otp-session.service';
+import { StepUpService } from '@/core/auth/services/step-up.service';
+import { TokenService } from '@/core/auth/services/token.service';
+import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
+import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 @Injectable()
 export class ChangeContactService {
   constructor(
-    private readonly config: ConfigService<Config>,
-    private readonly crypto: CryptoService,
-    private readonly cache: AuthCacheService,
-    private readonly users: UserRepository,
     private readonly credentials: CredentialRepository,
-    private readonly otp: OtpService,
+    private readonly identifiers: IdentifierRepository,
+    private readonly otpSession: OtpSessionService,
+    private readonly stepUp: StepUpService,
+    private readonly tokens: TokenService,
+    private readonly audit: AuditService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
   ) {}
 
-  // ---------- Email ----------
-  async requestEmailChange(userId: string, newEmail: string): Promise<void> {
-    const owner = await this.users.findByEmail(newEmail);
-    if (owner && owner.id !== userId) {
+  async requestEmailChange(
+    userId: string,
+    newEmail: string,
+    currentPassword: string,
+    context: RequestContext = {},
+  ): Promise<void> {
+    await this.stepUp.requirePassword(userId, currentPassword);
+
+    const email = normalizeEmail(newEmail);
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.EMAIL,
+      email,
+    );
+    if (owner && owner.userId !== userId) {
       throw new ConflictException(locals.auth.email_already_in_use);
     }
 
-    const app = this.config.get<Config['app']>('app')!;
-
-    const rawToken = this.crypto.randomToken(32);
-    const tokenHash = this.crypto.hashSha256(rawToken);
-
-    await this.cache.setEmailVerify(
-      tokenHash,
-      { userId, email: newEmail },
-      AUTH_POLICY.emailVerifyTtlSeconds,
+    const primary = await this.identifiers.findPrimary(
+      userId,
+      IdentifierType.EMAIL,
     );
 
-    const link = `${app.frontendUrl.replace(/\/$/, '')}/verify-email?token=${rawToken}`;
-    const hours = Math.round(AUTH_POLICY.emailVerifyTtlSeconds / 3600);
-    await this.mailer.send({
-      to: newEmail,
-      subject: 'Confirm your new email',
-      text: `Click to confirm your new email: ${link}\n\nExpires in ${hours}h.`,
-      html: `<p>Click to confirm your new email:</p><p><a href="${link}">${link}</a></p><p>Expires in ${hours}h.</p>`,
+    await this.otpSession.issue({
+      userId,
+      purpose: 'change-email',
+      channel: 'email',
+      destination: email,
+      mailType: AuthMailType.CHANGE_EMAIL,
+      tokens: [TokenType.CODE, TokenType.TOKEN],
+      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
+    });
+
+    if (primary?.value) {
+      await this.notifyOldEmail(primary.value, email);
+    }
+
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      context,
+      metadata: { email },
     });
   }
 
   async confirmEmailChange(
     token: string,
   ): Promise<{ userId: string; email: string }> {
-    const tokenHash = this.crypto.hashSha256(token);
-    const record = await this.cache.getEmailVerify(tokenHash);
-    if (!record) {
+    const consumed = await this.otpSession.verifyByToken(token);
+    if (consumed.purpose !== 'change-email') {
       throw new NotFoundException(
         locals.auth.confirmation_link_invalid_or_expired,
       );
     }
-
-    const owner = await this.users.findByEmail(record.email);
-    if (owner && owner.id !== record.userId) {
-      throw new ConflictException(locals.auth.email_already_in_use);
-    }
-
-    const updated = await this.users.updateEmail(record.userId, record.email);
-    await this.users.markEmailVerified(record.userId);
-
-    // Keep EMAIL credential providerId in sync if present.
-    const credential = await this.credentials.findByUserAndProvider(
-      record.userId,
-      AuthProvider.EMAIL,
-    );
-    if (credential && credential.providerId !== record.email) {
-      await this.credentials.updateProviderId(credential.id, record.email);
-    }
-
-    await this.cache.deleteEmailVerify(tokenHash);
-    return { userId: updated.id, email: record.email };
+    return this.applyEmailChange(consumed.userId, consumed.destination);
   }
 
-  // ---------- Phone ----------
-  async requestPhoneChange(userId: string, newPhone: string): Promise<void> {
-    const owner = await this.users.findByPhone(newPhone);
-    if (owner && owner.id !== userId) {
+  async confirmEmailChangeByOtp(
+    userId: string,
+    code: string,
+  ): Promise<{ userId: string; email: string }> {
+    const consumed = await this.otpSession.verifyByCode(
+      userId,
+      'change-email',
+      code,
+    );
+    return this.applyEmailChange(consumed.userId, consumed.destination);
+  }
+
+  async requestPhoneChange(
+    userId: string,
+    newPhone: string,
+    currentPassword: string,
+    context: RequestContext = {},
+  ): Promise<void> {
+    await this.stepUp.requirePassword(userId, currentPassword);
+
+    const phone = normalizePhone(newPhone);
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.PHONE,
+      phone,
+    );
+    if (owner && owner.userId !== userId) {
       throw new ConflictException(locals.auth.phone_already_in_use);
     }
-    await this.users.updatePhone(userId, newPhone);
-    await this.otp.send({
-      channel: 'sms',
+
+    await this.otpSession.issue({
       userId,
-      purpose: 'register-verify',
-      destination: newPhone,
+      purpose: 'change-phone',
+      channel: 'sms',
+      destination: phone,
+      mailType: AuthMailType.CHANGE_PHONE,
+      tokens: [TokenType.CODE],
+      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
+    });
+
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.PHONE_ADDED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      context,
+      metadata: { phone, mode: 'change-request' },
     });
   }
 
   async confirmPhoneChange(userId: string, code: string): Promise<void> {
-    await this.otp.verify({
-      channel: 'sms',
+    const consumed = await this.otpSession.verifyByCode(
       userId,
-      purpose: 'register-verify',
+      'change-phone',
       code,
+    );
+    await this.applyPhoneChange(consumed.userId, consumed.destination);
+  }
+
+  private async applyEmailChange(
+    userId: string,
+    email: string,
+  ): Promise<{ userId: string; email: string }> {
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.EMAIL,
+      email,
+    );
+    if (owner && owner.userId !== userId) {
+      throw new ConflictException(locals.auth.email_already_in_use);
+    }
+
+    const primary = await this.identifiers.findPrimary(
+      userId,
+      IdentifierType.EMAIL,
+    );
+    if (primary) {
+      if (primary.value !== email) {
+        await this.identifiers.delete(primary.id);
+        await this.identifiers.create({
+          userId,
+          type: IdentifierType.EMAIL,
+          value: email,
+          isPrimary: true,
+          isVerified: true,
+        });
+      } else {
+        await this.identifiers.markVerified(primary.id);
+      }
+    } else {
+      await this.identifiers.create({
+        userId,
+        type: IdentifierType.EMAIL,
+        value: email,
+        isPrimary: true,
+        isVerified: true,
+      });
+    }
+
+    const credential = await this.credentials.findByUserAndProvider(
+      userId,
+      AuthProvider.EMAIL,
+    );
+    if (credential && credential.providerId !== email) {
+      await this.credentials.updateProviderId(credential.id, email);
+    }
+
+    await this.tokens.revokeAllForUser(userId);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.EMAIL_CHANGED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      metadata: { email },
     });
-    await this.users.markPhoneVerified(userId);
+
+    return { userId, email };
+  }
+
+  private async applyPhoneChange(userId: string, phone: string): Promise<void> {
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.PHONE,
+      phone,
+    );
+    if (owner && owner.userId !== userId) {
+      throw new ConflictException(locals.auth.phone_already_in_use);
+    }
+
+    const primary = await this.identifiers.findPrimary(
+      userId,
+      IdentifierType.PHONE,
+    );
+    if (primary) {
+      if (primary.value !== phone) {
+        await this.identifiers.delete(primary.id);
+        await this.identifiers.create({
+          userId,
+          type: IdentifierType.PHONE,
+          value: phone,
+          isPrimary: true,
+          isVerified: true,
+        });
+      } else {
+        await this.identifiers.markVerified(primary.id);
+      }
+    } else {
+      await this.identifiers.create({
+        userId,
+        type: IdentifierType.PHONE,
+        value: phone,
+        isPrimary: true,
+        isVerified: true,
+      });
+    }
+
+    await this.tokens.revokeAllForUser(userId);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.PHONE_ADDED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      metadata: { phone, mode: 'change-confirm' },
+    });
+  }
+
+  private async notifyOldEmail(
+    oldEmail: string,
+    newEmail: string,
+  ): Promise<void> {
+    try {
+      await this.mailer.send({
+        to: oldEmail,
+        subject: 'Your email address change was requested',
+        text: `A request was made to change your account email to ${newEmail}. If this was not you, sign in and secure your account immediately.`,
+        html: `<p>A request was made to change your account email to <strong>${newEmail}</strong>.</p><p>If this was not you, sign in and secure your account immediately.</p>`,
+      });
+    } catch {
+      // Non-fatal: confirmation to the new address is the source of truth.
+    }
   }
 }

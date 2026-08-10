@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { DevicePlatform, FcmToken } from '@prisma-client';
+import type { FcmToken } from '@prisma-client';
+import type { DevicePlatformValue } from '@/core/fcm-token/constants/device-platform.constants';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface SyncFcmTokenInput {
   userId: string;
   token: string;
   deviceId: string;
-  platform: DevicePlatform;
+  platform: DevicePlatformValue;
   lastSessionId?: string | null;
 }
 

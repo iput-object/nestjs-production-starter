@@ -1,19 +1,27 @@
 import {
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { AuthProvider, UserStatus } from '@prisma-client';
+import { UserStatus } from '@prisma-client';
+import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
+import type { TwoFactorMethodTypeValue } from '@/core/auth/constants/two-factor-method.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
-import { format } from '@/common/utils/format.util';
+import { AuditService } from '@/common/audit/services/audit.service';
+import {
+  AUTH_AUDIT_MODULE,
+  AUTH_AUDIT_RESOURCE,
+  AuthAuditAction,
+} from '@/core/auth/constants/auth-audit.constants';
+import { resolveIdentifier } from '@/core/auth/helpers/normalize.helper';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import type { LoginDto } from '@/core/auth/dto/login.dto';
@@ -22,7 +30,6 @@ import type {
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
-import type { TwoFactorMethodType } from '@prisma-client';
 import locals from '@/locals';
 
 export type LoginResult =
@@ -30,44 +37,60 @@ export type LoginResult =
   | {
       kind: 'two-factor';
       challengeId: string;
-      methods: TwoFactorMethodType[];
+      methods: TwoFactorMethodTypeValue[];
     };
 
+/**
+ * Issues a session even when the account is unverified. Business routes are
+ * gated by {@link VerifiedGuard}; the client uses isAccountVerified on AuthUser
+ * to send the user to the verify screen.
+ */
 @Injectable()
 export class LoginService {
   constructor(
     private readonly crypto: CryptoService,
     private readonly cache: AuthCacheService,
     private readonly users: UserRepository,
+    private readonly identifiers: IdentifierRepository,
     private readonly credentials: CredentialRepository,
     private readonly twoFactorRepo: TwoFactorRepository,
     private readonly twoFactor: TwoFactorService,
     private readonly tokens: TokenService,
+    private readonly audit: AuditService,
   ) {}
 
   async login(dto: LoginDto, context: RequestContext): Promise<LoginResult> {
-    const emailHash = this.crypto.hashSha256(dto.email);
+    const resolved = resolveIdentifier(dto.identifier);
+    const identityHash = this.crypto.hashSha256(resolved.value);
 
-    const fails = await this.cache.getLoginFails(emailHash);
+    const fails = await this.cache.getLoginFails(identityHash);
     if (fails >= AUTH_POLICY.loginMaxFails) {
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.LOGIN_LOCKOUT,
+        outcome: 'FAILURE',
+        context,
+        metadata: { identityHash },
+      });
       throw new HttpException(
         locals.auth.too_many_failed_attempts,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    const user = await this.users.findByEmail(dto.email);
-    if (!user) {
-      await this.recordFail(emailHash, fails);
+    const owner = await this.identifiers.findActiveOwner(
+      resolved.type,
+      resolved.value,
+    );
+    if (!owner) {
+      await this.recordFail(identityHash, fails, context);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
+    const { user } = owner;
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException(
-        format(locals.auth.account_status, {
-          status: user.status.toLowerCase(),
-        }),
-      );
+      await this.recordFail(identityHash, fails, context, user.id);
+      throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     const credential = await this.credentials.findByUserAndProvider(
@@ -75,31 +98,39 @@ export class LoginService {
       AuthProvider.EMAIL,
     );
     if (!credential || !credential.passwordHash) {
-      await this.recordFail(emailHash, fails);
+      await this.recordFail(identityHash, fails, context, user.id);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     const matches = await bcrypt.compare(dto.password, credential.passwordHash);
     if (!matches) {
-      await this.recordFail(emailHash, fails);
+      await this.recordFail(identityHash, fails, context, user.id);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
-    await this.cache.deleteLoginFails(emailHash);
+    await this.cache.deleteLoginFails(identityHash);
     await this.credentials.touchLastUsed(credential.id);
 
-    const enabledMethods = await this.twoFactorRepo.findEnabledForUser(user.id);
-    if (enabledMethods.length > 0) {
-      const challenge = await this.twoFactor.issueChallenge(
-        user,
-        enabledMethods,
-        context,
+    const isAccountVerified = await this.identifiers.isAccountVerified(user.id);
+
+    // 2FA only applies once the account is verified — unfinished signups
+    // should land on the verify screen, not a second factor challenge.
+    if (isAccountVerified) {
+      const enabledMethods = await this.twoFactorRepo.findEnabledForUser(
+        user.id,
       );
-      return {
-        kind: 'two-factor',
-        challengeId: challenge.challengeId,
-        methods: challenge.methods,
-      };
+      if (enabledMethods.length > 0) {
+        const challenge = await this.twoFactor.issueChallenge(
+          user,
+          enabledMethods,
+          context,
+        );
+        return {
+          kind: 'two-factor',
+          challengeId: challenge.challengeId,
+          methods: challenge.methods,
+        };
+      }
     }
 
     const authUser = await this.users.findAuthUser(user.id);
@@ -107,14 +138,38 @@ export class LoginService {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
     const tokens = await this.tokens.issue(user.id, context);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.LOGIN_SUCCESS,
+      userId: user.id,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: user.id,
+      context,
+      metadata: { isAccountVerified },
+    });
     return { kind: 'tokens', tokens, user: authUser };
   }
 
-  private async recordFail(emailHash: string, current: number): Promise<void> {
+  private async recordFail(
+    identityHash: string,
+    current: number,
+    context: RequestContext,
+    userId?: string,
+  ): Promise<void> {
     await this.cache.setLoginFails(
-      emailHash,
+      identityHash,
       current + 1,
       AUTH_POLICY.loginLockoutTtlSeconds,
     );
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.LOGIN_FAIL,
+      outcome: 'FAILURE',
+      userId: userId ?? null,
+      resourceType: userId ? AUTH_AUDIT_RESOURCE.USER : undefined,
+      resourceId: userId,
+      context,
+      metadata: { identityHash },
+    });
   }
 }

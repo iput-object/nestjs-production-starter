@@ -6,17 +6,28 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { type TwoFactorMethod, type User } from '@prisma-client';
-import { TwoFactorMethodType } from '@prisma-client';
+import { type TwoFactorMethod, type User, IdentifierType } from '@prisma-client';
+import {
+  TwoFactorMethodType,
+  type TwoFactorMethodTypeValue,
+} from '@/core/auth/constants/two-factor-method.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import {
   AuthCacheService,
   TwoFactorChallengeRecord,
 } from '@/core/auth/services/auth-cache.service';
+import { AuditService } from '@/common/audit/services/audit.service';
+import {
+  AUTH_AUDIT_MODULE,
+  AUTH_AUDIT_RESOURCE,
+  AuthAuditAction,
+} from '@/core/auth/constants/auth-audit.constants';
 import { OtpService } from '@/core/auth/services/otp.service';
+import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import type {
   AuthTokens,
@@ -30,7 +41,7 @@ const BACKUP_CODE_BYTES = 5; // → 10 hex chars
 
 export interface ChallengeIssued {
   challengeId: string;
-  methods: TwoFactorMethodType[];
+  methods: TwoFactorMethodTypeValue[];
 }
 
 export interface BackupCodesResult {
@@ -43,10 +54,13 @@ export class TwoFactorService {
     private readonly crypto: CryptoService,
     private readonly cache: AuthCacheService,
     private readonly twoFactor: TwoFactorRepository,
+    private readonly identifiers: IdentifierRepository,
     private readonly users: UserRepository,
     private readonly otp: OtpService,
     private readonly totp: TotpService,
     private readonly tokens: TokenService,
+    private readonly stepUp: StepUpService,
+    private readonly audit: AuditService,
   ) {}
 
   // ---------- Listing ----------
@@ -55,14 +69,21 @@ export class TwoFactorService {
   }
 
   // ---------- Email OTP enroll ----------
-  async enrollEmailOtp(user: User, email?: string): Promise<void> {
-    const destination = email ?? user.email;
+  async enrollEmailOtp(userId: string, email?: string): Promise<void> {
+    let destination = email;
+    if (!destination) {
+      const primary = await this.identifiers.findPrimary(
+        userId,
+        IdentifierType.EMAIL,
+      );
+      destination = primary?.value;
+    }
     if (!destination) {
       throw new BadRequestException(locals.auth.no_email_to_enroll);
     }
 
     const existing = await this.twoFactor.findByUserAndType(
-      user.id,
+      userId,
       TwoFactorMethodType.EMAIL_OTP,
     );
     if (existing?.isEnabled) {
@@ -70,14 +91,14 @@ export class TwoFactorService {
     }
 
     await this.twoFactor.upsert({
-      userId: user.id,
+      userId,
       type: TwoFactorMethodType.EMAIL_OTP,
       destination,
     });
 
     await this.otp.send({
       channel: 'email',
-      userId: user.id,
+      userId,
       purpose: 'enroll-2fa',
       destination,
     });
@@ -101,17 +122,31 @@ export class TwoFactorService {
       code,
     });
     await this.twoFactor.enable(method.id);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.TWO_FACTOR_ENABLED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
+      metadata: { type: TwoFactorMethodType.EMAIL_OTP },
+    });
   }
 
   // ---------- SMS OTP enroll ----------
-  async enrollSmsOtp(user: User, phone?: string): Promise<void> {
-    const destination = phone ?? user.phone;
+  async enrollSmsOtp(userId: string, phone?: string): Promise<void> {
+    let destination = phone;
+    if (!destination) {
+      const primary = await this.identifiers.findPrimary(
+        userId,
+        IdentifierType.PHONE,
+      );
+      destination = primary?.value;
+    }
     if (!destination) {
       throw new BadRequestException(locals.auth.no_phone_to_enroll);
     }
 
     const existing = await this.twoFactor.findByUserAndType(
-      user.id,
+      userId,
       TwoFactorMethodType.SMS_OTP,
     );
     if (existing?.isEnabled) {
@@ -119,14 +154,14 @@ export class TwoFactorService {
     }
 
     await this.twoFactor.upsert({
-      userId: user.id,
+      userId,
       type: TwoFactorMethodType.SMS_OTP,
       destination,
     });
 
     await this.otp.send({
       channel: 'sms',
-      userId: user.id,
+      userId,
       purpose: 'enroll-2fa',
       destination,
     });
@@ -150,26 +185,48 @@ export class TwoFactorService {
       code,
     });
     await this.twoFactor.enable(method.id);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.TWO_FACTOR_ENABLED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
+      metadata: { type: TwoFactorMethodType.SMS_OTP },
+    });
   }
 
   // ---------- Disable ----------
-  async disable(userId: string, methodId: string): Promise<void> {
+  async disable(
+    userId: string,
+    methodId: string,
+    currentPassword: string,
+  ): Promise<void> {
+    await this.stepUp.requirePassword(userId, currentPassword);
     const method = await this.twoFactor.findById(methodId);
     if (!method || method.userId !== userId) {
       throw new NotFoundException(locals.auth.two_factor_method_not_found);
     }
     await this.twoFactor.delete(methodId);
 
-    // If the user has no enabled methods left, recovery codes have nothing
-    // to recover to — clear them so they don't survive as a stale auth path.
     const remaining = await this.twoFactor.findEnabledForUser(userId);
     if (remaining.length === 0) {
       await this.twoFactor.clearBackupCodes(userId);
     }
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.TWO_FACTOR_DISABLED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
+      resourceId: methodId,
+      metadata: { methodId, type: method.type },
+    });
   }
 
   // ---------- Backup codes (per-user) ----------
-  async regenerateBackupCodes(userId: string): Promise<BackupCodesResult> {
+  async regenerateBackupCodes(
+    userId: string,
+    currentPassword: string,
+  ): Promise<BackupCodesResult> {
+    await this.stepUp.requirePassword(userId, currentPassword);
     const enabled = await this.twoFactor.findEnabledForUser(userId);
     if (enabled.length === 0) {
       throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
@@ -226,14 +283,16 @@ export class TwoFactorService {
 
     return {
       challengeId,
-      methods: enabledMethods.map((m) => m.type),
+      methods: enabledMethods.map(
+        (m) => m.type as TwoFactorMethodTypeValue,
+      ),
     };
   }
 
   // ---------- Challenge: send/resend OTP for email/sms ----------
   async sendChallengeCode(
     challengeId: string,
-    type: TwoFactorMethodType,
+    type: TwoFactorMethodTypeValue,
   ): Promise<void> {
     if (type === TwoFactorMethodType.TOTP) {
       throw new BadRequestException(locals.auth.totp_no_sent_code);
@@ -264,7 +323,7 @@ export class TwoFactorService {
   // ---------- Challenge: verify ----------
   async verifyChallenge(
     challengeId: string,
-    type: TwoFactorMethodType,
+    type: TwoFactorMethodTypeValue,
     code: string,
     context: RequestContext,
   ): Promise<AuthTokens> {

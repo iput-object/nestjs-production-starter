@@ -1,13 +1,8 @@
 // ============================================================
 // core/enums.prisma
-// All auth-related enums — define once, use across core
+// Closed domain enums only — extensible vocabularies live in code
+// as String columns + TypeScript constants.
 // ============================================================
-
-enum AuthProvider {
-  EMAIL
-  GOOGLE
-  APPLE
-}
 
 enum Role {
   ADMIN
@@ -21,14 +16,7 @@ enum UserStatus {
   SUSPENDED
 }
 
-enum TwoFactorMethodType {
-  TOTP
-  EMAIL_OTP
-  SMS_OTP
-}
-
-enum DevicePlatform {
-  IOS
-  ANDROID
-  WEB
+enum IdentifierType {
+  EMAIL
+  PHONE
 }

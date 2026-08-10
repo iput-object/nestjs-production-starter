@@ -3,7 +3,14 @@ import { CACHE_PORT } from '@/infrastructure/redis/redis.constants';
 import type { CachePort } from '@/infrastructure/redis/redis.types';
 
 export type OtpPurpose =
-  'login' | 'register-verify' | 'reset-password' | 'enroll-2fa';
+  | 'login'
+  | 'register-verify'
+  | 'reset-password'
+  | 'enroll-2fa'
+  | 'change-email'
+  | 'add-email'
+  | 'add-phone'
+  | 'change-phone';
 
 export interface OtpRecord {
   codeHash: string;
@@ -42,6 +49,12 @@ export interface TwoFactorChallengeRecord {
   methodIds: string[];
   ip?: string;
   userAgent?: string;
+  createdAt: number;
+}
+
+export interface PasswordResetChallengeRecord {
+  userId: string;
+  channelIds: string[];
   createdAt: number;
 }
 
@@ -195,6 +208,31 @@ export class AuthCacheService {
     await this.cache.del(this.twoFactorChallengeKey(challengeId));
   }
 
+  // ---------- Password-reset channel picker ----------
+  async setPasswordResetChallenge(
+    resetId: string,
+    record: PasswordResetChallengeRecord,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.cache.set(
+      this.passwordResetChallengeKey(resetId),
+      record,
+      ttlSeconds,
+    );
+  }
+
+  getPasswordResetChallenge(
+    resetId: string,
+  ): Promise<PasswordResetChallengeRecord | null> {
+    return this.cache.get<PasswordResetChallengeRecord>(
+      this.passwordResetChallengeKey(resetId),
+    );
+  }
+
+  async deletePasswordResetChallenge(resetId: string): Promise<void> {
+    await this.cache.del(this.passwordResetChallengeKey(resetId));
+  }
+
   // ---------- Login fail counter ----------
   async getLoginFails(emailHash: string): Promise<number> {
     const value = await this.cache.get<number>(this.loginFailKey(emailHash));
@@ -259,6 +297,9 @@ export class AuthCacheService {
   }
   private twoFactorChallengeKey(challengeId: string): string {
     return `2fa-challenge:${challengeId}`;
+  }
+  private passwordResetChallengeKey(resetId: string): string {
+    return `password-reset:${resetId}`;
   }
   private loginFailKey(emailHash: string): string {
     return `login:fail:${emailHash}`;
