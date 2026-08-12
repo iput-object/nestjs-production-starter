@@ -28,21 +28,24 @@ export class UserRepository {
         role: true,
         profile: { select: { name: true, avatarUrl: true } },
         identifiers: {
-          where: { type: IdentifierType.EMAIL, isPrimary: true },
+          where: {
+            type: { in: [IdentifierType.EMAIL, IdentifierType.PHONE] },
+            isPrimary: true,
+          },
           select: { value: true, isVerified: true },
           take: 1,
         },
       },
     });
     if (!row) return null;
-    const primaryEmail = row.identifiers[0];
     return {
       id: row.id,
       name: row.profile?.name ?? null,
       avatar: row.profile?.avatarUrl ?? null,
-      email: primaryEmail?.value ?? null,
+      phone: row.identifiers?.[0]?.value ?? null,
+      email: row.identifiers?.[0]?.value ?? null,
       role: row.role,
-      isAccountVerified: primaryEmail?.isVerified ?? false,
+      isAccountVerified: row.identifiers?.[0]?.isVerified ?? false,
     };
   }
 
@@ -77,11 +80,7 @@ export class UserRepository {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  updateStatus(
-    id: string,
-    status: UserStatus,
-    reason?: string,
-  ): Promise<User> {
+  updateStatus(id: string, status: UserStatus, reason?: string): Promise<User> {
     return this.prisma.user.update({
       where: { id },
       data: { status, reason: reason ?? null },
