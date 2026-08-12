@@ -5,6 +5,7 @@ import type { CachePort } from '@/infrastructure/redis/redis.types';
 export type OtpPurpose =
   | 'login'
   | 'register-verify'
+  | 'register-verify-phone'
   | 'reset-password'
   | 'enroll-2fa'
   | 'change-email'

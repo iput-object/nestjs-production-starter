@@ -19,10 +19,8 @@ import { IdentifierRepository } from '@/core/auth/repositories/identifier.reposi
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { TokenService } from '@/core/auth/services/token.service';
 import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
+import { BCRYPT_ROUNDS, APPLE_RELAY_DOMAIN } from '@/core/auth/auth.constants';
 import locals from '@/locals';
-
-const BCRYPT_ROUNDS = 12;
-const APPLE_RELAY_DOMAIN = '@privaterelay.appleid.com';
 
 @Injectable()
 export class PasswordChangeService {

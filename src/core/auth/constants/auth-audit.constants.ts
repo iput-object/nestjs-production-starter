@@ -8,6 +8,7 @@ export const AuthAuditAction = Object.freeze({
   LOGIN_LOCKOUT: 'login.lockout',
   REGISTER: 'register',
   EMAIL_VERIFIED: 'email.verified',
+  PHONE_VERIFIED: 'phone.verified',
   PASSWORD_RESET: 'password.reset',
   PASSWORD_CHANGED: 'password.changed',
   PASSWORD_SET: 'password.set',

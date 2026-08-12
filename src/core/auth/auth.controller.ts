@@ -68,6 +68,11 @@ import {
   ConfirmEmailVerificationSessionOtpDto,
   ResendEmailVerificationDto,
 } from '@/core/auth/dto/verify-email.dto';
+import {
+  ConfirmPhoneVerificationOtpDto,
+  ConfirmPhoneVerificationSessionOtpDto,
+  ResendPhoneVerificationDto,
+} from '@/core/auth/dto/verify-phone.dto';
 import { AccountLifecycleService } from '@/core/auth/services/account-lifecycle.service';
 import { AuthCookieService } from '@/core/auth/services/auth-cookie.service';
 import { ChangeContactService } from '@/core/auth/services/change-contact.service';
@@ -77,6 +82,7 @@ import { LoginService } from '@/core/auth/services/login.service';
 import { OAuthService } from '@/core/auth/services/oauth.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
 import { PasswordResetService } from '@/core/auth/services/password-reset.service';
+import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
 import { RegisterService } from '@/core/auth/services/register.service';
 import { SessionService } from '@/core/auth/services/session.service';
 import { TokenService } from '@/core/auth/services/token.service';
@@ -102,6 +108,7 @@ export class AuthController {
     private readonly tokens: TokenService,
     private readonly cookies: AuthCookieService,
     private readonly emailVerify: EmailVerifyService,
+    private readonly phoneVerify: PhoneVerifyService,
     private readonly passwordReset: PasswordResetService,
     private readonly passwordChange: PasswordChangeService,
     private readonly changeContact: ChangeContactService,
@@ -116,7 +123,9 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Register a new account and start a session' })
+  @ApiOperation({
+    summary: 'Register with email and/or phone and start a session',
+  })
   @ApiTransportHeader()
   async registerAccount(
     @Body() dto: RegisterDto,
@@ -300,7 +309,7 @@ export class AuthController {
   @AllowUnverified()
   @Get('me')
   @ApiOperation({
-    summary: 'Current user profile (allowed while email is unverified)',
+    summary: 'Current user profile (allowed while the account is unverified)',
   })
   async me(@CurrentUser('sub') userId: string) {
     const user = await this.users.findAuthUser(userId);
@@ -327,10 +336,7 @@ export class AuthController {
   @AllowUnverified()
   @Get('sessions')
   @ApiOperation({ summary: 'List active sessions' })
-  async listSessions(
-    @CurrentUser('sub') userId: string,
-    @Req() req: Request,
-  ) {
+  async listSessions(@CurrentUser('sub') userId: string, @Req() req: Request) {
     const refresh = this.helper.refreshTokenFromCookie(req);
     return {
       data: await this.sessions.list(userId, refresh),
@@ -418,6 +424,59 @@ export class AuthController {
     return { message: locals.auth.email_verification_sent };
   }
 
+  @Post('phone/verify/otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Verify phone with an OTP code (public)' })
+  async confirmPhoneByOtp(
+    @Body() dto: ConfirmPhoneVerificationOtpDto,
+  ): Promise<ServiceResponse<{ isAccountVerified: boolean }>> {
+    const user = await this.phoneVerify.confirmOtp(dto.phone, dto.code);
+    return { message: locals.auth.phone_verified, data: user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @AllowUnverified()
+  @Post('phone/verify/confirm')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Verify phone with OTP while signed in (post-signup session)',
+  })
+  async confirmPhoneBySessionOtp(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: ConfirmPhoneVerificationSessionOtpDto,
+  ) {
+    const user = await this.phoneVerify.confirmOtpForUser(userId, dto.code);
+    return { message: locals.auth.phone_verified, data: user };
+  }
+
+  @Post('phone/verify/resend')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend phone verification OTP (public)' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async resendPhoneVerification(
+    @Body() dto: ResendPhoneVerificationDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.phoneVerify.issueByPhone(dto.phone);
+    return { message: locals.auth.phone_verification_sent };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @AllowUnverified()
+  @Post('phone/verify/resend/me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resend phone verification to the signed-in unverified user',
+  })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async resendMyPhoneVerification(
+    @CurrentUser('sub') userId: string,
+  ): Promise<ServiceResponse<void>> {
+    await this.phoneVerify.issueForUser(userId);
+    return { message: locals.auth.phone_verification_sent };
+  }
+
   @Post('password/forgot')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -425,9 +484,7 @@ export class AuthController {
       'Start password reset — returns masked recovery channels to choose from',
   })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  async forgotPassword(
-    @Body() dto: ForgotPasswordDto,
-  ): Promise<
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<
     ServiceResponse<{
       resetId: string;
       channels: Array<{ id: string; type: string; hint: string }>;

@@ -5,7 +5,7 @@ import {
   AUTH_OTP_CODE_LEN,
   AUTH_OTP_SALT,
   AUTH_OTP_TOKEN_LEN,
-} from '../auth.constants';
+} from '@/core/auth/auth.constants';
 
 export enum TokenType {
   CODE = 'CODE',

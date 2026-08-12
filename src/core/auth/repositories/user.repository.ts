@@ -32,20 +32,21 @@ export class UserRepository {
             type: { in: [IdentifierType.EMAIL, IdentifierType.PHONE] },
             isPrimary: true,
           },
-          select: { value: true, isVerified: true },
-          take: 1,
+          select: { type: true, value: true, isVerified: true },
         },
       },
     });
     if (!row) return null;
+    const email = row.identifiers.find((i) => i.type === IdentifierType.EMAIL);
+    const phone = row.identifiers.find((i) => i.type === IdentifierType.PHONE);
     return {
       id: row.id,
       name: row.profile?.name ?? null,
       avatar: row.profile?.avatarUrl ?? null,
-      phone: row.identifiers?.[0]?.value ?? null,
-      email: row.identifiers?.[0]?.value ?? null,
+      phone: phone?.value ?? null,
+      email: email?.value ?? null,
       role: row.role,
-      isAccountVerified: row.identifiers?.[0]?.isVerified ?? false,
+      isAccountVerified: Boolean(email?.isVerified || phone?.isVerified),
     };
   }
 

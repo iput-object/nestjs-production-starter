@@ -77,7 +77,15 @@ export class IdentifierRepository {
   }
 
   async isAccountVerified(userId: string): Promise<boolean> {
-    return this.hasVerifiedPrimaryEmail(userId);
+    const verifiedPrimary = await this.prisma.userIdentifier.count({
+      where: {
+        userId,
+        isPrimary: true,
+        isVerified: true,
+        type: { in: [IdentifierType.EMAIL, IdentifierType.PHONE] },
+      },
+    });
+    return verifiedPrimary > 0;
   }
 
   async hasVerifiedPrimaryEmail(userId: string): Promise<boolean> {

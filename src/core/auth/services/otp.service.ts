@@ -1,6 +1,5 @@
 import * as bcrypt from 'bcryptjs';
 import {
-  BadRequestException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -16,14 +15,13 @@ import { SMS_PORT } from '@/infrastructure/sms/sms.constants';
 import type { SmsPort } from '@/infrastructure/sms/sms.types';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { format } from '@/common/utils/format.util';
+import { AUTH_OTP_SALT } from '@/core/auth/auth.constants';
 import {
   AuthCacheService,
   OtpPurpose,
 } from '@/core/auth/services/auth-cache.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import locals from '@/locals';
-
-const BCRYPT_ROUNDS = 8;
 
 export type OtpChannel = 'email' | 'sms';
 
@@ -89,7 +87,7 @@ export class OtpService {
     }
 
     const code = this.crypto.randomNumericCode(OTP_POLICY.length);
-    const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+    const codeHash = await bcrypt.hash(code, AUTH_OTP_SALT);
 
     this.devSecret.log('otp', code, {
       channel: input.channel,
@@ -191,6 +189,8 @@ export class OtpService {
         return 'Your sign-in code';
       case 'register-verify':
         return 'Verify your email';
+      case 'register-verify-phone':
+        return 'Verify your phone';
       case 'reset-password':
         return 'Password reset code';
       case 'enroll-2fa':

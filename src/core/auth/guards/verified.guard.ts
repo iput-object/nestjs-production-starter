@@ -14,7 +14,7 @@ import locals from '@/locals';
  * Requires a verified account. Pair with {@link JwtAuthGuard}.
  * Opt out per-route with {@link AllowUnverified}.
  *
- * Today "account verified" means primary email is verified.
+ * "Account verified" means a primary email or phone identifier is verified.
  */
 @Injectable()
 export class VerifiedGuard implements CanActivate {

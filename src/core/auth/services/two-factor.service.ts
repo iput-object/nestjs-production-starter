@@ -34,10 +34,11 @@ import type {
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
 import { TokenService } from '@/core/auth/services/token.service';
+import {
+  BACKUP_CODE_BYTES,
+  BACKUP_CODE_COUNT,
+} from '@/core/auth/auth.constants';
 import locals from '@/locals';
-
-const BACKUP_CODE_COUNT = 10;
-const BACKUP_CODE_BYTES = 5; // → 10 hex chars
 
 export interface ChallengeIssued {
   challengeId: string;

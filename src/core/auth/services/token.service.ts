@@ -13,9 +13,8 @@ import type {
   AuthTokens,
   RequestContext,
 } from '@/core/auth/types/auth-tokens.type';
+import { SECONDS_IN_DAY } from '@/core/auth/auth.constants';
 import locals from '@/locals';
-
-const SECONDS_IN_DAY = 86_400;
 
 @Injectable()
 export class TokenService {

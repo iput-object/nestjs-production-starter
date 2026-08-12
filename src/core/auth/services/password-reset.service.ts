@@ -19,9 +19,8 @@ import {
 import { AuditService } from '@/common/audit/services/audit.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
+import { BCRYPT_ROUNDS } from '@/core/auth/auth.constants';
 import locals from '@/locals';
-
-const BCRYPT_ROUNDS = 12;
 
 export type RecoveryChannelType = 'EMAIL' | 'PHONE';
 

@@ -7,6 +7,6 @@ export interface AuthUser {
   avatar: string | null;
   role: Role;
   phone: string | null;
-  /** True once the account may use business routes (primary email verified). */
+  /** True once a primary email or phone is verified. */
   isAccountVerified: boolean;
 }

@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { UserStatus } from '@prisma-client';
+import { IdentifierType, UserStatus } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import type { TwoFactorMethodTypeValue } from '@/core/auth/constants/two-factor-method.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
@@ -16,7 +16,10 @@ import {
   AUTH_AUDIT_RESOURCE,
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
-import { resolveIdentifier } from '@/core/auth/helpers/normalize.helper';
+import {
+  normalizeEmail,
+  normalizePhone,
+} from '@/core/auth/helpers/normalize.helper';
 import { AuthCacheService } from '@/core/auth/services/auth-cache.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
@@ -60,7 +63,9 @@ export class LoginService {
   ) {}
 
   async login(dto: LoginDto, context: RequestContext): Promise<LoginResult> {
-    const resolved = resolveIdentifier(dto.identifier);
+    const resolved = dto.email
+      ? { type: IdentifierType.EMAIL, value: normalizeEmail(dto.email) }
+      : { type: IdentifierType.PHONE, value: normalizePhone(dto.phone ?? '') };
     const identityHash = this.crypto.hashSha256(resolved.value);
 
     const fails = await this.cache.getLoginFails(identityHash);
