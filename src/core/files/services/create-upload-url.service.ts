@@ -1,12 +1,13 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { plainToInstance } from 'class-transformer';
 import { Config } from '@/configs/environment.config';
 import { STORAGE_PORT } from '@/infrastructure/storage/storage.constants';
 import type { StoragePort } from '@/infrastructure/storage/storage.types';
-import { CreateUploadUrlDto } from '@/core/files/dto/create-upload-url.dto';
+import { CreateUploadUrlDto } from '@/core/files/dto/request/create-upload-url.dto';
 import { buildObjectKey } from '@/core/files/helpers/file-key.helper';
 import { FileObjectRepository } from '@/core/files/repositories/file-object.repository';
-import { toFileView } from '@/core/files/files.presenter';
+import { RequestUploadUrlResponseDto } from '@/core/files/dto/response/request-upload-url.response.dto';
 import locals from '@/locals';
 
 @Injectable()
@@ -41,7 +42,11 @@ export class CreateUploadUrlService {
 
     return {
       message: locals.files.upload_url_created,
-      data: { file: toFileView(file), upload },
+      data: plainToInstance(
+        RequestUploadUrlResponseDto,
+        { file, upload },
+        { excludeExtraneousValues: true },
+      ),
     };
   }
 }

@@ -4,7 +4,6 @@ import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
-import { maskEmail, maskPhone } from '@/common/utils/mask.util';
 import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { resolveIdentifier } from '@/core/auth/helpers/normalize.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
@@ -27,7 +26,7 @@ export type RecoveryChannelType = 'EMAIL' | 'PHONE';
 export interface RecoveryChannel {
   id: string;
   type: RecoveryChannelType;
-  hint: string;
+  destination: string;
 }
 
 export interface ForgotPasswordResult {
@@ -77,11 +76,8 @@ export class PasswordResetService {
 
     const channels: RecoveryChannel[] = verified.map((row) => ({
       id: row.id,
-      type: row.type as RecoveryChannelType,
-      hint:
-        row.type === IdentifierType.EMAIL
-          ? maskEmail(row.value)
-          : maskPhone(row.value),
+      type: row.type,
+      destination: row.value,
     }));
 
     await this.cache.setPasswordResetChallenge(
@@ -100,7 +96,9 @@ export class PasswordResetService {
   async send(resetId: string, channelId: string): Promise<void> {
     const challenge = await this.cache.getPasswordResetChallenge(resetId);
     if (!challenge || !challenge.channelIds.includes(channelId)) {
-      throw new NotFoundException(locals.auth.reset_challenge_invalid_or_expired);
+      throw new NotFoundException(
+        locals.auth.reset_challenge_invalid_or_expired,
+      );
     }
 
     const identifier = await this.identifiers.findById(channelId);
@@ -109,11 +107,12 @@ export class PasswordResetService {
       identifier.userId !== challenge.userId ||
       !identifier.isVerified
     ) {
-      throw new NotFoundException(locals.auth.reset_challenge_invalid_or_expired);
+      throw new NotFoundException(
+        locals.auth.reset_challenge_invalid_or_expired,
+      );
     }
 
-    const channel =
-      identifier.type === IdentifierType.EMAIL ? 'email' : 'sms';
+    const channel = identifier.type === IdentifierType.EMAIL ? 'email' : 'sms';
 
     try {
       await this.otpSession.issue({
@@ -150,7 +149,9 @@ export class PasswordResetService {
   ): Promise<void> {
     const challenge = await this.cache.getPasswordResetChallenge(resetId);
     if (!challenge) {
-      throw new NotFoundException(locals.auth.reset_challenge_invalid_or_expired);
+      throw new NotFoundException(
+        locals.auth.reset_challenge_invalid_or_expired,
+      );
     }
 
     await this.otpSession.verifyByCode(

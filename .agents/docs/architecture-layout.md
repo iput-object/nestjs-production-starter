@@ -24,7 +24,8 @@ Inside a feature folder (same shape under `src/core/<feature>/` and `src/modules
 <feature>.controller.ts
 services/         # one service per use-case; never a god-service
 repositories/     # one repo per aggregate; returns Prisma types
-dto/              # input DTOs with class-validator
+dto/request/      # validated request DTOs
+dto/response/     # serialized public response DTOs
 strategies/       # passport strategies if applicable
 guards/           # route guards
 decorators/       # route/param decorators
@@ -52,11 +53,9 @@ types/            # shared types for this feature
 - Filenames are **kebab-case** with a category suffix:
   - `*.controller.ts`, `*.service.ts`, `*.module.ts`, `*.repository.ts`, `*.dto.ts`, `*.strategy.ts`, `*.guard.ts`, `*.decorator.ts`, `*.types.ts`, `*.policy.ts`, `*.processor.ts`, `*.interceptor.ts`, `*.config.ts`.
 - Class names are PascalCase matching the filename: `login.service.ts` → `LoginService`.
-- DTO classes end with `Dto` (`LoginDto`, `RegisterDto`). Multiple DTOs in a file is fine if tightly related (e.g. `email-change.dto.ts` exports `RequestEmailChangeDto` + `ConfirmEmailChangeDto`).
+- DTO classes end with `Dto` (`LoginDto`, `RegisterDto`). Each endpoint owns separate request and response DTO classes when those contracts are needed. Response DTOs live in separate files; tightly related request DTOs may share a file, but routes never reuse the same request DTO class.
 - Constants live in `*.constants.ts` (SCREAMING_SNAKE_CASE or an `as const` object).
 - Test files live next to the code as `*.spec.ts` (unit) or under `test/` as `*.e2e-spec.ts` (e2e).
-
-
 
 ## Architecture (CRITICAL)
 
@@ -137,15 +136,17 @@ Complex queries belong in repositories, not services. Services hold business log
 @Injectable()
 export class UsersRepository {
   constructor(@InjectRepository(User) private repo: Repository<User>) {}
-  findActiveWithMinOrders(min: number) { /* QB here */ }
+  findActiveWithMinOrders(min: number) {
+    /* QB here */
+  }
 }
 @Injectable()
 export class UsersService {
   constructor(private users: UsersRepository) {}
-  getActiveUsers() { return this.users.findActiveWithMinOrders(1); }
+  getActiveUsers() {
+    return this.users.findActiveWithMinOrders(1);
+  }
 }
 ```
 
 ## Dependency Injection (CRITICAL)
-
-

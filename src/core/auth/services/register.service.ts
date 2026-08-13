@@ -23,7 +23,7 @@ import {
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
 import { AuditService } from '@/common/audit/services/audit.service';
-import type { RegisterDto } from '@/core/auth/dto/register.dto';
+import type { RegisterDto } from '@/core/auth/dto/request/register.dto';
 import type {
   AuthTokens,
   RequestContext,

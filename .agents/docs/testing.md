@@ -8,9 +8,7 @@ Backing principles: [R27](#r27), [R25](#r25), [R26](#r26), [R29](#r29).
 - Mock external services (Redis, mailers, SMS) — never hit the network in unit tests.
 - Repository tests **may** hit a real test database (preferred over mocking Prisma); use a separate `DATABASE_URL` in test config.
 - E2E tests in `test/` use Supertest against the full Nest application. Boot via `Test.createTestingModule({ imports: [AppModule] })`.
-
-
-
+- Do not add a new `*.spec.ts` or `*.e2e-spec.ts` file unless the user explicitly requests tests.
 
 ### R25 — test-e2e-supertest {#r25}
 
@@ -45,7 +43,10 @@ Use `Test.createTestingModule(...)` — don't `new SomeService(...)` manually.
 const module = await Test.createTestingModule({
   providers: [
     UsersService,
-    { provide: UserRepository, useValue: { save: jest.fn(), findOne: jest.fn() } },
+    {
+      provide: UserRepository,
+      useValue: { save: jest.fn(), findOne: jest.fn() },
+    },
   ],
 }).compile();
 service = module.get(UsersService);
@@ -53,5 +54,3 @@ repo = module.get(UserRepository);
 ```
 
 ## Database & ORM (MEDIUM-HIGH)
-
-

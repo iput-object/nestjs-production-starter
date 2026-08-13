@@ -27,7 +27,7 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
-import type { LoginDto } from '@/core/auth/dto/login.dto';
+import type { LoginDto } from '@/core/auth/dto/request/login.dto';
 import type {
   AuthTokens,
   RequestContext,

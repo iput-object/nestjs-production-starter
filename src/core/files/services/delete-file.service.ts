@@ -1,6 +1,8 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { STORAGE_PORT } from '@/infrastructure/storage/storage.constants';
 import type { StoragePort } from '@/infrastructure/storage/storage.types';
+import { RemoveFileResponseDto } from '@/core/files/dto/response/remove-file.response.dto';
 import { FileObjectRepository } from '@/core/files/repositories/file-object.repository';
 import locals from '@/locals';
 
@@ -22,7 +24,11 @@ export class DeleteFileService {
 
     return {
       message: locals.files.file_deleted,
-      data: { id: file.id },
+      data: plainToInstance(
+        RemoveFileResponseDto,
+        { id: file.id },
+        { excludeExtraneousValues: true },
+      ),
     };
   }
 }

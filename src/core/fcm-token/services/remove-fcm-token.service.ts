@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { RemoveFcmTokenResponseDto } from '@/core/fcm-token/dto/response/remove-fcm-token.response.dto';
 import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repository';
-import type { RemoveFcmTokenDto } from '@/core/fcm-token/dto/remove-fcm-token.dto';
+import type { RemoveFcmTokenDto } from '@/core/fcm-token/dto/request/remove-fcm-token.dto';
 import locals from '@/locals';
 
 @Injectable()
@@ -12,7 +14,11 @@ export class RemoveFcmTokenService {
 
     return {
       message: locals.fcm.token_removed,
-      data: { removed: true },
+      data: plainToInstance(
+        RemoveFcmTokenResponseDto,
+        { removed: true },
+        { excludeExtraneousValues: true },
+      ),
     };
   }
 }

@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
+import { AuthTokensResponseDto } from '@/core/auth/dto/response/auth-tokens.response.dto';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { AuthCookieService } from '@/core/auth/services/auth-cookie.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
@@ -18,9 +20,8 @@ export class AuthControllerHelper {
 
   public async firstEnrollmentBackupCodes(
     userId: string,
-  ): Promise<{ data: { backupCodes: string[] } } | undefined> {
-    const codes = await this.twoFactor.issueBackupCodesIfNone(userId);
-    return codes ? { data: { backupCodes: codes } } : undefined;
+  ): Promise<string[] | undefined> {
+    return (await this.twoFactor.issueBackupCodesIfNone(userId)) ?? undefined;
   }
 
   public wantsBearer(req: Request): boolean {
@@ -35,9 +36,13 @@ export class AuthControllerHelper {
     res: Response,
     tokens: AuthTokens,
     bearer: boolean,
-  ): { tokens: AuthTokens } | undefined {
+  ): { tokens: AuthTokensResponseDto } | undefined {
     if (bearer) {
-      return { tokens };
+      return {
+        tokens: plainToInstance(AuthTokensResponseDto, tokens, {
+          excludeExtraneousValues: true,
+        }),
+      };
     }
     this.cookies.setAuthCookies(res, tokens);
     return undefined;

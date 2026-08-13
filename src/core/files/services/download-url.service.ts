@@ -5,8 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { plainToInstance } from 'class-transformer';
 import { Config } from '@/configs/environment.config';
 import { STORAGE_PORT } from '@/infrastructure/storage/storage.constants';
+import { GetDownloadUrlResponseDto } from '@/core/files/dto/response/get-download-url.response.dto';
 import type { StoragePort } from '@/infrastructure/storage/storage.types';
 import { FileObjectRepository } from '@/core/files/repositories/file-object.repository';
 import locals from '@/locals';
@@ -34,7 +36,11 @@ export class DownloadUrlService {
       if (publicUrl) {
         return {
           message: locals.files.download_url_created,
-          data: { url: publicUrl },
+          data: plainToInstance(
+            GetDownloadUrlResponseDto,
+            { url: publicUrl },
+            { excludeExtraneousValues: true },
+          ),
         };
       }
     }
@@ -43,7 +49,11 @@ export class DownloadUrlService {
     const storageConfig = this.config.getOrThrow<Config['storage']>('storage');
     return {
       message: locals.files.download_url_created,
-      data: { url, expiresIn: storageConfig.downloadUrlTtlSeconds },
+      data: plainToInstance(
+        GetDownloadUrlResponseDto,
+        { url, expiresIn: storageConfig.downloadUrlTtlSeconds },
+        { excludeExtraneousValues: true },
+      ),
     };
   }
 }

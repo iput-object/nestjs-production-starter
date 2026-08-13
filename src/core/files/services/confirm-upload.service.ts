@@ -4,10 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { STORAGE_PORT } from '@/infrastructure/storage/storage.constants';
 import type { StoragePort } from '@/infrastructure/storage/storage.types';
 import { FileObjectRepository } from '@/core/files/repositories/file-object.repository';
-import { toFileView } from '@/core/files/files.presenter';
+import { CompleteUploadResponseDto } from '@/core/files/dto/response/complete-upload.response.dto';
 import locals from '@/locals';
 
 @Injectable()
@@ -26,7 +27,11 @@ export class ConfirmUploadService {
     if (file.status === 'UPLOADED') {
       return {
         message: locals.files.upload_confirmed,
-        data: { file: toFileView(file) },
+        data: plainToInstance(
+          CompleteUploadResponseDto,
+          { file },
+          { excludeExtraneousValues: true },
+        ),
       };
     }
 
@@ -38,7 +43,11 @@ export class ConfirmUploadService {
     const updated = await this.files.markUploaded(file.id, { size });
     return {
       message: locals.files.upload_confirmed,
-      data: { file: toFileView(updated) },
+      data: plainToInstance(
+        CompleteUploadResponseDto,
+        { file: updated },
+        { excludeExtraneousValues: true },
+      ),
     };
   }
 }

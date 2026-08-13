@@ -1,12 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { FcmToken } from '@prisma-client';
+import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '@/database/prisma.service';
-import {
-  DEVICE_PLATFORM_FROM_API,
-  DEVICE_PLATFORM_TO_API,
-  type DevicePlatformApiValue,
-} from '@/core/fcm-token/constants/device-platform.constants';
-import type { RegisterFcmTokenDto } from '@/core/fcm-token/dto/register-fcm-token.dto';
+import { DEVICE_PLATFORM_FROM_API } from '@/core/fcm-token/constants/device-platform.constants';
+import { RegisterFcmTokenResponseDto } from '@/core/fcm-token/dto/response/register-fcm-token.response.dto';
+import type { RegisterFcmTokenDto } from '@/core/fcm-token/dto/request/register-fcm-token.dto';
 import locals from '@/locals';
 
 @Injectable()
@@ -66,23 +63,11 @@ export class RegisterFcmTokenService {
       return tx.fcmToken.create({ data });
     });
 
-    return this.toResponse(record, payload.platform);
-  }
-
-  private toResponse(record: FcmToken, platform: DevicePlatformApiValue) {
     return {
       message: locals.fcm.token_synced,
-      data: {
-        id: record.id,
-        userId: record.userId,
-        token: record.token,
-        deviceId: record.deviceId,
-        platform:
-          DEVICE_PLATFORM_TO_API[
-            record.platform as keyof typeof DEVICE_PLATFORM_TO_API
-          ] ?? platform,
-        lastSeenAt: record.lastSeenAt.toISOString(),
-      },
+      data: plainToInstance(RegisterFcmTokenResponseDto, record, {
+        excludeExtraneousValues: true,
+      }),
     };
   }
 }
