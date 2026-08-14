@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ApiHeader } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { AuthTokensResponseDto } from '@/core/auth/dto/response/auth-tokens.response.dto';
@@ -53,3 +54,12 @@ export class AuthControllerHelper {
     return typeof value === 'string' ? value : undefined;
   }
 }
+
+export const ApiTransportHeader = () =>
+  ApiHeader({
+    name: AUTH_TRANSPORT_HEADER,
+    required: false,
+    description:
+      "Send 'bearer' to receive tokens in the response body (mobile/API clients). " +
+      'Omit to receive httpOnly auth cookies instead (web).',
+  });

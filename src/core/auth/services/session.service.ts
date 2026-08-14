@@ -62,6 +62,7 @@ export class SessionService {
     }
     await this.sessions.revokeById(sessionId);
     await this.cache.deleteSessionMirror(session.refreshTokenHash);
+    await this.cache.deleteSudoGrant(userId, sessionId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.SESSION_REVOKED,

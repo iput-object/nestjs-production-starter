@@ -4,7 +4,7 @@ import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { resolveIdentifier } from '@/core/auth/helpers/normalize.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
@@ -17,7 +17,6 @@ import {
 } from '@/core/auth/constants/auth-audit.constants';
 import { AuditService } from '@/core/audit/services/audit.service';
 import { TokenService } from '@/core/auth/services/token.service';
-import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import { BCRYPT_ROUNDS } from '@/core/auth/auth.constants';
 import locals from '@/locals';
 
@@ -117,16 +116,20 @@ export class PasswordResetService {
     try {
       await this.otpSession.issue({
         userId: challenge.userId,
-        purpose: 'reset-password',
+        purpose: OtpPurpose.RESET_PASSWORD,
         channel,
         destination: identifier.value,
-        mailType: AuthMailType.RESET_PASSWORD,
-        tokens:
-          channel === 'email'
-            ? [TokenType.CODE, TokenType.TOKEN]
-            : [TokenType.CODE],
-        ttlSeconds: AUTH_POLICY.passwordResetTtlSeconds,
       });
+      const remainingTtl = Math.max(
+        1,
+        AUTH_POLICY.passwordResetChallengeTtlSeconds -
+          Math.floor((Date.now() - challenge.createdAt) / 1000),
+      );
+      await this.cache.setPasswordResetChallenge(
+        resetId,
+        { ...challenge, otpChannel: channel },
+        remainingTtl,
+      );
     } catch (err) {
       if (err instanceof HttpException) {
         throw err;
@@ -135,10 +138,10 @@ export class PasswordResetService {
   }
 
   async reset(token: string, newPassword: string): Promise<void> {
-    const { userId, purpose } = await this.otpSession.verifyByToken(token);
-    if (purpose !== 'reset-password') {
-      throw new NotFoundException(locals.auth.reset_link_invalid_or_expired);
-    }
+    const { userId } = await this.otpSession.verifyByToken(
+      token,
+      OtpPurpose.RESET_PASSWORD,
+    );
     await this.applyNewPassword(userId, newPassword);
   }
 
@@ -148,7 +151,7 @@ export class PasswordResetService {
     newPassword: string,
   ): Promise<void> {
     const challenge = await this.cache.getPasswordResetChallenge(resetId);
-    if (!challenge) {
+    if (!challenge?.otpChannel) {
       throw new NotFoundException(
         locals.auth.reset_challenge_invalid_or_expired,
       );
@@ -156,7 +159,8 @@ export class PasswordResetService {
 
     await this.otpSession.verifyByCode(
       challenge.userId,
-      'reset-password',
+      OtpPurpose.RESET_PASSWORD,
+      challenge.otpChannel,
       code,
     );
     await this.applyNewPassword(challenge.userId, newPassword);

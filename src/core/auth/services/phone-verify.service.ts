@@ -4,9 +4,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { IdentifierType } from '@prisma-client';
-import { AUTH_POLICY } from '@/configs/auth.policy';
 import { normalizePhone } from '@/core/auth/helpers/normalize.helper';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
@@ -16,7 +15,6 @@ import {
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
 import { AuditService } from '@/core/audit/services/audit.service';
-import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import locals from '@/locals';
 
@@ -32,12 +30,9 @@ export class PhoneVerifyService {
   async issueAndSend(userId: string, phone: string): Promise<void> {
     await this.otpSession.issue({
       userId,
-      purpose: 'register-verify-phone',
+      purpose: OtpPurpose.REGISTER_VERIFY_PHONE,
       channel: 'sms',
       destination: phone,
-      mailType: AuthMailType.REGISTER,
-      tokens: [TokenType.CODE],
-      ttlSeconds: AUTH_POLICY.emailVerifyTtlSeconds,
     });
   }
 
@@ -78,7 +73,8 @@ export class PhoneVerifyService {
     }
     const consumed = await this.otpSession.verifyByCode(
       owner.user.id,
-      'register-verify-phone',
+      OtpPurpose.REGISTER_VERIFY_PHONE,
+      'sms',
       code,
     );
     return this.markVerified(consumed.userId, consumed.destination);
@@ -99,7 +95,8 @@ export class PhoneVerifyService {
     }
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'register-verify-phone',
+      OtpPurpose.REGISTER_VERIFY_PHONE,
+      'sms',
       code,
     );
     return this.markVerified(consumed.userId, consumed.destination);

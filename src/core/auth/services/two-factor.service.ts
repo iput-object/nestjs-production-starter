@@ -17,6 +17,7 @@ import {
 } from '@/core/auth/constants/two-factor-method.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
@@ -30,8 +31,8 @@ import {
   AUTH_AUDIT_RESOURCE,
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
-import { OtpService } from '@/core/auth/services/otp.service';
-import { StepUpService } from '@/core/auth/services/step-up.service';
+import { OtpSessionService } from '@/core/auth/services/otp-session.service';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { TokenService } from '@/core/auth/services/token.service';
@@ -58,10 +59,10 @@ export class TwoFactorService {
     private readonly twoFactor: TwoFactorRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly users: UserRepository,
-    private readonly otp: OtpService,
+    private readonly otpSession: OtpSessionService,
     private readonly totp: TotpService,
     private readonly tokens: TokenService,
-    private readonly stepUp: StepUpService,
+    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -98,10 +99,10 @@ export class TwoFactorService {
       destination,
     });
 
-    await this.otp.send({
-      channel: 'email',
+    await this.otpSession.issue({
       userId,
-      purpose: 'enroll-2fa',
+      purpose: OtpPurpose.ENROLL_2FA,
+      channel: 'email',
       destination,
     });
   }
@@ -117,12 +118,12 @@ export class TwoFactorService {
     if (method.isEnabled) {
       throw new ConflictException(locals.auth.email_otp_already_enabled);
     }
-    await this.otp.verify({
-      channel: 'email',
+    await this.otpSession.verifyByCode(
       userId,
-      purpose: 'enroll-2fa',
+      OtpPurpose.ENROLL_2FA,
+      'email',
       code,
-    });
+    );
     await this.twoFactor.enable(method.id);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
@@ -161,10 +162,10 @@ export class TwoFactorService {
       destination,
     });
 
-    await this.otp.send({
-      channel: 'sms',
+    await this.otpSession.issue({
       userId,
-      purpose: 'enroll-2fa',
+      purpose: OtpPurpose.ENROLL_2FA,
+      channel: 'sms',
       destination,
     });
   }
@@ -180,12 +181,12 @@ export class TwoFactorService {
     if (method.isEnabled) {
       throw new ConflictException(locals.auth.sms_otp_already_enabled);
     }
-    await this.otp.verify({
-      channel: 'sms',
+    await this.otpSession.verifyByCode(
       userId,
-      purpose: 'enroll-2fa',
+      OtpPurpose.ENROLL_2FA,
+      'sms',
       code,
-    });
+    );
     await this.twoFactor.enable(method.id);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
@@ -199,10 +200,10 @@ export class TwoFactorService {
   // ---------- Disable ----------
   async disable(
     userId: string,
+    sessionId: string,
     methodId: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const method = await this.twoFactor.findById(methodId);
     if (!method || method.userId !== userId) {
       throw new NotFoundException(locals.auth.two_factor_method_not_found);
@@ -213,6 +214,7 @@ export class TwoFactorService {
     if (remaining.length === 0) {
       await this.twoFactor.clearBackupCodes(userId);
     }
+    await this.sudo.clear(userId, sessionId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.TWO_FACTOR_DISABLED,
@@ -226,9 +228,9 @@ export class TwoFactorService {
   // ---------- Backup codes (per-user) ----------
   async regenerateBackupCodes(
     userId: string,
-    currentPassword: string,
+    sessionId: string,
   ): Promise<BackupCodesResult> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const enabled = await this.twoFactor.findEnabledForUser(userId);
     if (enabled.length === 0) {
       throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
@@ -311,10 +313,10 @@ export class TwoFactorService {
         locals.auth.method_not_available_for_challenge,
       );
     }
-    await this.otp.send({
-      channel: type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms',
+    await this.otpSession.issue({
       userId: record.userId,
-      purpose: 'login',
+      purpose: OtpPurpose.LOGIN,
+      channel: type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms',
       destination: method.destination,
     });
   }
@@ -352,15 +354,15 @@ export class TwoFactorService {
       }
       ok = this.totp.verifyEnrolled(method.secret, code);
     } else {
-      const channel: 'email' | 'sms' =
-        type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms';
       try {
-        await this.otp.verify({
+        const channel =
+          type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms';
+        await this.otpSession.verifyByCode(
+          user.id,
+          OtpPurpose.LOGIN,
           channel,
-          userId: user.id,
-          purpose: 'login',
           code,
-        });
+        );
         ok = true;
       } catch {
         ok = await this.tryConsumeBackupCode(user.id, code);

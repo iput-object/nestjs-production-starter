@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
-import { AUTH_POLICY } from '@/configs/auth.policy';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
@@ -17,13 +17,11 @@ import {
   normalizeEmail,
   normalizePhone,
 } from '@/core/auth/helpers/normalize.helper';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
-import { StepUpService } from '@/core/auth/services/step-up.service';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
-import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import locals from '@/locals';
 
 @Injectable()
@@ -32,7 +30,7 @@ export class IdentifierService {
     private readonly identifiers: IdentifierRepository,
     private readonly credentials: CredentialRepository,
     private readonly otpSession: OtpSessionService,
-    private readonly stepUp: StepUpService,
+    private readonly sudo: SudoService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
   ) {}
@@ -43,21 +41,18 @@ export class IdentifierService {
 
   async requestAddEmail(
     userId: string,
+    sessionId: string,
     email: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const value = normalizeEmail(email);
     await this.assertAvailable(IdentifierType.EMAIL, value);
 
     await this.otpSession.issue({
       userId,
-      purpose: 'add-email',
+      purpose: OtpPurpose.ADD_EMAIL,
       channel: 'email',
       destination: value,
-      mailType: AuthMailType.CHANGE_EMAIL,
-      tokens: [TokenType.CODE, TokenType.TOKEN],
-      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
     });
 
     await this.audit.record({
@@ -70,12 +65,10 @@ export class IdentifierService {
   }
 
   async confirmAddEmailByToken(token: string): Promise<void> {
-    const consumed = await this.otpSession.verifyByToken(token);
-    if (consumed.purpose !== 'add-email') {
-      throw new NotFoundException(
-        locals.auth.confirmation_link_invalid_or_expired,
-      );
-    }
+    const consumed = await this.otpSession.verifyByToken(
+      token,
+      OtpPurpose.ADD_EMAIL,
+    );
     await this.commitIdentifier(
       consumed.userId,
       IdentifierType.EMAIL,
@@ -86,7 +79,8 @@ export class IdentifierService {
   async confirmAddEmailByOtp(userId: string, code: string): Promise<void> {
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'add-email',
+      OtpPurpose.ADD_EMAIL,
+      'email',
       code,
     );
     await this.commitIdentifier(
@@ -98,28 +92,26 @@ export class IdentifierService {
 
   async requestAddPhone(
     userId: string,
+    sessionId: string,
     phone: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const value = normalizePhone(phone);
     await this.assertAvailable(IdentifierType.PHONE, value);
 
     await this.otpSession.issue({
       userId,
-      purpose: 'add-phone',
+      purpose: OtpPurpose.ADD_PHONE,
       channel: 'sms',
       destination: value,
-      mailType: AuthMailType.CHANGE_PHONE,
-      tokens: [TokenType.CODE],
-      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
     });
   }
 
   async confirmAddPhone(userId: string, code: string): Promise<void> {
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'add-phone',
+      OtpPurpose.ADD_PHONE,
+      'sms',
       code,
     );
     await this.commitIdentifier(
@@ -131,10 +123,10 @@ export class IdentifierService {
 
   async setPrimary(
     userId: string,
+    sessionId: string,
     identifierId: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const identifier = await this.identifiers.findById(identifierId);
     if (!identifier || identifier.userId !== userId) {
       throw new NotFoundException(locals.auth.identifier_not_found);
@@ -165,10 +157,10 @@ export class IdentifierService {
 
   async remove(
     userId: string,
+    sessionId: string,
     identifierId: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
     const identifier = await this.identifiers.findById(identifierId);
     if (!identifier || identifier.userId !== userId) {
       throw new NotFoundException(locals.auth.identifier_not_found);

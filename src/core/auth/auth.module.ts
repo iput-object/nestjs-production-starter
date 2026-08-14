@@ -3,7 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Config } from '@/configs/environment.config';
-import { AuthController } from '@/core/auth/auth.controller';
+import { AuthIdentifierController } from '@/core/auth/controllers/auth-identifier.controller';
+import { AuthPasswordController } from '@/core/auth/controllers/auth-password.controller';
+import { AuthSessionController } from '@/core/auth/controllers/auth-session.controller';
+import { AuthSudoController } from '@/core/auth/controllers/auth-sudo.controller';
+import { AuthTwoFactorController } from '@/core/auth/controllers/auth-two-factor.controller';
+import { AuthVerifyController } from '@/core/auth/controllers/auth-verify.controller';
 import { AuthControllerHelper } from '@/core/auth/helpers/auth-controller.helper';
 import { OtpGeneratorHelper } from '@/core/auth/helpers/otp-generator.helper';
 import { AuthOtpTransporter } from '@/core/auth/transporters/auth-otp.transporter';
@@ -23,7 +28,6 @@ import { EmailVerifyService } from '@/core/auth/services/email-verify.service';
 import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
 import { PasswordResetService } from '@/core/auth/services/password-reset.service';
 import { PasswordChangeService } from '@/core/auth/services/password-change.service';
-import { OtpService } from '@/core/auth/services/otp.service';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
@@ -32,9 +36,10 @@ import { IdentifierService } from '@/core/auth/services/identifier.service';
 import { SessionService } from '@/core/auth/services/session.service';
 import { OAuthService } from '@/core/auth/services/oauth.service';
 import { AccountLifecycleService } from '@/core/auth/services/account-lifecycle.service';
-import { StepUpService } from '@/core/auth/services/step-up.service';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 
 @Module({
@@ -55,11 +60,19 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [
+    AuthSessionController,
+    AuthVerifyController,
+    AuthPasswordController,
+    AuthIdentifierController,
+    AuthTwoFactorController,
+    AuthSudoController,
+  ],
   providers: [
     JwtStrategy,
     JwtRefreshStrategy,
     JwtAuthGuard,
+    VerifiedGuard,
     AuthCacheService,
     UserRepository,
     CredentialRepository,
@@ -74,7 +87,6 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     PhoneVerifyService,
     PasswordResetService,
     PasswordChangeService,
-    OtpService,
     OtpSessionService,
     TotpService,
     TwoFactorService,
@@ -83,7 +95,7 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     SessionService,
     OAuthService,
     AccountLifecycleService,
-    StepUpService,
+    SudoService,
     DevSecretLogger,
     AuthControllerHelper,
     OtpGeneratorHelper,
@@ -100,6 +112,7 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     IdentifierRepository,
     AccountLifecycleService,
     JwtAuthGuard,
+    VerifiedGuard,
   ],
 })
 export class AuthModule {}

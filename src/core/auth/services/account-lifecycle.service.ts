@@ -13,7 +13,7 @@ import {
 } from '@/core/auth/constants/auth-audit.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
-import { StepUpService } from '@/core/auth/services/step-up.service';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import locals from '@/locals';
 
@@ -23,12 +23,12 @@ export class AccountLifecycleService {
     private readonly users: UserRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly tokens: TokenService,
-    private readonly stepUp: StepUpService,
+    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
-  async deactivate(userId: string, currentPassword: string): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+  async deactivate(userId: string, sessionId: string): Promise<void> {
+    await this.sudo.requireSudo(userId, sessionId);
     const user = await this.users.findById(userId);
     if (!user) {
       throw new NotFoundException(locals.auth.user_not_found);

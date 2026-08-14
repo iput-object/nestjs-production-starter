@@ -1,25 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_PORT } from '@/infrastructure/redis/redis.constants';
 import type { CachePort } from '@/infrastructure/redis/redis.types';
+import type { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 
-export type OtpPurpose =
-  | 'login'
-  | 'register-verify'
-  | 'register-verify-phone'
-  | 'reset-password'
-  | 'enroll-2fa'
-  | 'change-email'
-  | 'add-email'
-  | 'add-phone'
-  | 'change-phone'
-  | 'sudo';
-
-export interface OtpRecord {
-  codeHash: string;
-  destination: string;
-  attempts: number;
-  sentAt: number;
-}
+export type { OtpPurpose };
 
 // Unified challenge: one record carries both the OTP code hash and the magic
 // link token hash, so consuming either method deletes the single record and
@@ -39,11 +23,7 @@ export interface OtpSessionRecord {
 export interface OtpTokenIndexRecord {
   userId: string;
   purpose: OtpPurpose;
-}
-
-export interface EmailVerifyRecord {
-  userId: string;
-  email: string;
+  channel: 'email' | 'sms';
 }
 
 export interface TwoFactorChallengeRecord {
@@ -58,56 +38,38 @@ export interface PasswordResetChallengeRecord {
   userId: string;
   channelIds: string[];
   createdAt: number;
+  /** Channel of the last successfully issued reset OTP. */
+  otpChannel?: 'email' | 'sms';
 }
 
 export interface SessionMirrorRecord {
   userId: string;
 }
 
+export type SudoElevateMethod = 'password' | 'otp' | '2fa';
+
+export interface SudoGrantRecord {
+  userId: string;
+  sessionId: string;
+  method: SudoElevateMethod;
+  elevatedAt: number;
+  expiresAt: number;
+}
+
 @Injectable()
 export class AuthCacheService {
   constructor(@Inject(CACHE_PORT) private readonly cache: CachePort) {}
-
-  // ---------- OTP (email/sms) ----------
-  async setOtp(
-    channel: 'email' | 'sms',
-    userId: string,
-    purpose: OtpPurpose,
-    record: OtpRecord,
-    ttlSeconds: number,
-  ): Promise<void> {
-    await this.cache.set(
-      this.otpKey(channel, userId, purpose),
-      record,
-      ttlSeconds,
-    );
-  }
-
-  getOtp(
-    channel: 'email' | 'sms',
-    userId: string,
-    purpose: OtpPurpose,
-  ): Promise<OtpRecord | null> {
-    return this.cache.get<OtpRecord>(this.otpKey(channel, userId, purpose));
-  }
-
-  async deleteOtp(
-    channel: 'email' | 'sms',
-    userId: string,
-    purpose: OtpPurpose,
-  ): Promise<void> {
-    await this.cache.del(this.otpKey(channel, userId, purpose));
-  }
 
   // ---------- Unified OTP session (code + link in one record) ----------
   async setOtpSession(
     userId: string,
     purpose: OtpPurpose,
+    channel: 'email' | 'sms',
     record: OtpSessionRecord,
     ttlSeconds: number,
   ): Promise<void> {
     await this.cache.set(
-      this.otpSessionKey(userId, purpose),
+      this.otpSessionKey(userId, purpose, channel),
       record,
       ttlSeconds,
     );
@@ -116,14 +78,19 @@ export class AuthCacheService {
   getOtpSession(
     userId: string,
     purpose: OtpPurpose,
+    channel: 'email' | 'sms',
   ): Promise<OtpSessionRecord | null> {
     return this.cache.get<OtpSessionRecord>(
-      this.otpSessionKey(userId, purpose),
+      this.otpSessionKey(userId, purpose, channel),
     );
   }
 
-  async deleteOtpSession(userId: string, purpose: OtpPurpose): Promise<void> {
-    await this.cache.del(this.otpSessionKey(userId, purpose));
+  async deleteOtpSession(
+    userId: string,
+    purpose: OtpPurpose,
+    channel: 'email' | 'sms',
+  ): Promise<void> {
+    await this.cache.del(this.otpSessionKey(userId, purpose, channel));
   }
 
   async setOtpTokenIndex(
@@ -168,21 +135,31 @@ export class AuthCacheService {
     );
   }
 
-  // ---------- Email verify ----------
-  async setEmailVerify(
-    tokenHash: string,
-    record: EmailVerifyRecord,
+  // ---------- Sudo grant (session-bound) ----------
+  async setSudoGrant(
+    userId: string,
+    sessionId: string,
+    record: SudoGrantRecord,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.cache.set(this.emailVerifyKey(tokenHash), record, ttlSeconds);
+    await this.cache.set(
+      this.sudoGrantKey(userId, sessionId),
+      record,
+      ttlSeconds,
+    );
   }
 
-  getEmailVerify(tokenHash: string): Promise<EmailVerifyRecord | null> {
-    return this.cache.get<EmailVerifyRecord>(this.emailVerifyKey(tokenHash));
+  getSudoGrant(
+    userId: string,
+    sessionId: string,
+  ): Promise<SudoGrantRecord | null> {
+    return this.cache.get<SudoGrantRecord>(
+      this.sudoGrantKey(userId, sessionId),
+    );
   }
 
-  async deleteEmailVerify(tokenHash: string): Promise<void> {
-    await this.cache.del(this.emailVerifyKey(tokenHash));
+  async deleteSudoGrant(userId: string, sessionId: string): Promise<void> {
+    await this.cache.del(this.sudoGrantKey(userId, sessionId));
   }
 
   // ---------- 2FA challenge ----------
@@ -275,15 +252,12 @@ export class AuthCacheService {
   }
 
   // ---------- Key builders ----------
-  private otpKey(
-    channel: 'email' | 'sms',
+  private otpSessionKey(
     userId: string,
     purpose: OtpPurpose,
+    channel: 'email' | 'sms',
   ): string {
-    return `otp:${channel}:${userId}:${purpose}`;
-  }
-  private otpSessionKey(userId: string, purpose: OtpPurpose): string {
-    return `otp:session:${userId}:${purpose}`;
+    return `otp:session:${userId}:${purpose}:${channel}`;
   }
   private otpTokenIndexKey(tokenHash: string): string {
     return `otp:token:${tokenHash}`;
@@ -294,8 +268,8 @@ export class AuthCacheService {
   ): string {
     return `otp:throttle:${channel}:${destination}`;
   }
-  private emailVerifyKey(tokenHash: string): string {
-    return `email-verify:${tokenHash}`;
+  private sudoGrantKey(userId: string, sessionId: string): string {
+    return `sudo:${userId}:${sessionId}`;
   }
   private twoFactorChallengeKey(challengeId: string): string {
     return `2fa-challenge:${challengeId}`;

@@ -11,7 +11,6 @@ import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repo
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { SECONDS_IN_DAY } from '@/core/auth/auth.constants';
-import { AUTH_POLICY } from '@/configs/auth.policy';
 import locals from '@/locals';
 
 @Injectable()
@@ -29,7 +28,6 @@ export class TokenService {
   async issue(userId: string): Promise<AuthTokens> {
     const auth = this.config.get<Config['auth']>('auth')!;
 
-    const accessToken = await this.signAccessToken(userId);
     const refreshToken = await this.signRefreshToken(userId);
     const refreshTokenHash = this.crypto.hashSha256(refreshToken);
 
@@ -41,13 +39,15 @@ export class TokenService {
     const accessExpiresAt = new Date(now + accessTtlSeconds * 1000);
     const refreshExpiresAt = new Date(now + refreshTtlSeconds * 1000);
 
-    await this.sessions.create({
+    const session = await this.sessions.create({
       userId,
       refreshTokenHash,
       expiresAt: refreshExpiresAt,
       deviceId: null,
       deviceLabel: null,
     });
+
+    const accessToken = await this.signAccessToken(userId, session.id);
 
     await this.cache.setSessionMirror(
       refreshTokenHash,
@@ -97,6 +97,7 @@ export class TokenService {
       throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
 
+    await this.cache.deleteSudoGrant(userId, session.id);
     await this.sessions.revokeByHash(presentedHash);
     await this.cache.deleteSessionMirror(presentedHash);
 
@@ -105,12 +106,19 @@ export class TokenService {
 
   async revoke(refreshToken: string): Promise<void> {
     const hash = this.crypto.hashSha256(refreshToken);
+    const session = await this.sessions.findActiveByHash(hash);
+    if (session) {
+      await this.cache.deleteSudoGrant(session.userId, session.id);
+    }
     await this.sessions.revokeByHash(hash);
     await this.cache.deleteSessionMirror(hash);
   }
 
   async revokeAllForUser(userId: string): Promise<void> {
     const sessions = await this.sessions.listActiveForUser(userId);
+    await Promise.all(
+      sessions.map((s) => this.cache.deleteSudoGrant(userId, s.id)),
+    );
     await this.sessions.revokeAllForUser(userId);
     await Promise.all(
       sessions.map((s) => this.cache.deleteSessionMirror(s.refreshTokenHash)),
@@ -118,9 +126,13 @@ export class TokenService {
     await this.fcmTokens.deleteAllForUser(userId);
   }
 
-  signAccessToken(userId: string): Promise<string> {
+  signAccessToken(userId: string, sessionId: string): Promise<string> {
     const auth = this.config.get<Config['auth']>('auth')!;
-    const payload: JwtPayload = { sub: userId, tokenType: 'access' };
+    const payload: JwtPayload = {
+      sub: userId,
+      tokenType: 'access',
+      sid: sessionId,
+    };
     return this.jwt.signAsync(payload, {
       secret: auth.jwtAccessSecret,
       expiresIn: this.parseDurationSeconds(auth.jwtAccessExpiresIn),
@@ -133,15 +145,6 @@ export class TokenService {
     return this.jwt.signAsync(payload, {
       secret: auth.jwtRefreshSecret,
       expiresIn: this.parseDurationSeconds(auth.jwtRefreshExpiresIn),
-    });
-  }
-
-  signSudoAccessToken(userId: string): Promise<string> {
-    const auth = this.config.get<Config['auth']>('auth')!;
-    const payload: JwtPayload = { sub: userId, tokenType: 'access', sudo: true };
-    return this.jwt.signAsync(payload, {
-      secret: auth.jwtAccessSecret,
-      expiresIn: AUTH_POLICY.sudoTtlSeconds,
     });
   }
 

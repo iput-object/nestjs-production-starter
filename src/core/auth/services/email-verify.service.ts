@@ -4,9 +4,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { IdentifierType } from '@prisma-client';
-import { AUTH_POLICY } from '@/configs/auth.policy';
 import { normalizeEmail } from '@/core/auth/helpers/normalize.helper';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
@@ -16,11 +15,8 @@ import {
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
 import { AuditService } from '@/core/audit/services/audit.service';
-import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import locals from '@/locals';
-
-const DEFAULT_TOKENS: TokenType[] = [TokenType.CODE, TokenType.TOKEN];
 
 @Injectable()
 export class EmailVerifyService {
@@ -31,19 +27,12 @@ export class EmailVerifyService {
     private readonly audit: AuditService,
   ) {}
 
-  async issueAndSend(
-    userId: string,
-    email: string,
-    tokens: TokenType[] = DEFAULT_TOKENS,
-  ): Promise<void> {
+  async issueAndSend(userId: string, email: string): Promise<void> {
     await this.otpSession.issue({
       userId,
-      purpose: 'register-verify',
+      purpose: OtpPurpose.REGISTER_VERIFY,
       channel: 'email',
       destination: email,
-      mailType: AuthMailType.REGISTER,
-      tokens,
-      ttlSeconds: AUTH_POLICY.emailVerifyTtlSeconds,
     });
   }
 
@@ -76,13 +65,10 @@ export class EmailVerifyService {
   }
 
   async confirm(token: string): Promise<AuthUser> {
-    const { userId, purpose, destination } =
-      await this.otpSession.verifyByToken(token);
-    if (purpose !== 'register-verify') {
-      throw new UnauthorizedException(
-        locals.auth.verification_link_invalid_or_expired,
-      );
-    }
+    const { userId, destination } = await this.otpSession.verifyByToken(
+      token,
+      OtpPurpose.REGISTER_VERIFY,
+    );
     return this.markVerified(userId, destination);
   }
 
@@ -96,7 +82,8 @@ export class EmailVerifyService {
     }
     const consumed = await this.otpSession.verifyByCode(
       owner.user.id,
-      'register-verify',
+      OtpPurpose.REGISTER_VERIFY,
+      'email',
       code,
     );
     return this.markVerified(consumed.userId, consumed.destination);
@@ -118,7 +105,8 @@ export class EmailVerifyService {
     }
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'register-verify',
+      OtpPurpose.REGISTER_VERIFY,
+      'email',
       code,
     );
     return this.markVerified(consumed.userId, consumed.destination);

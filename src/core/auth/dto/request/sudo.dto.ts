@@ -1,19 +1,50 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  TWO_FACTOR_METHOD_TYPES,
+  type TwoFactorMethodTypeValue,
+} from '@/core/auth/constants/two-factor-method.constants';
 
-export class SudoDto {
-  @ApiProperty({ enum: ['password', 'totp', 'email_otp', 'sms_otp'] })
-  @IsEnum(['password', 'totp', 'email_otp', 'sms_otp'])
-  method: 'password' | 'totp' | 'email_otp' | 'sms_otp';
-
-  @ApiPropertyOptional({ description: 'Required if method is password' })
-  @IsOptional()
+export class SudoPasswordDto {
   @IsString()
   @MinLength(8)
-  password?: string;
+  @MaxLength(128)
+  @ApiProperty()
+  password!: string;
+}
 
-  @ApiPropertyOptional({ description: 'Required if method is an OTP/TOTP' })
-  @IsOptional()
+export class SudoOtpRequestDto {
+  @IsIn(['email', 'sms'])
+  @ApiProperty({ enum: ['email', 'sms'] })
+  channel!: 'email' | 'sms';
+}
+
+export class SudoOtpConfirmDto {
+  @IsIn(['email', 'sms'])
+  @ApiProperty({ enum: ['email', 'sms'] })
+  channel!: 'email' | 'sms';
+
   @IsString()
-  code?: string;
+  @MinLength(4)
+  @MaxLength(12)
+  @ApiProperty()
+  code!: string;
+}
+
+export class SudoTwoFactorSendDto {
+  @IsIn(TWO_FACTOR_METHOD_TYPES)
+  @ApiProperty({ enum: TWO_FACTOR_METHOD_TYPES })
+  type!: TwoFactorMethodTypeValue;
+}
+
+export class SudoTwoFactorDto {
+  @IsIn(TWO_FACTOR_METHOD_TYPES)
+  @ApiProperty({ enum: TWO_FACTOR_METHOD_TYPES })
+  type!: TwoFactorMethodTypeValue;
+
+  @IsString()
+  @MinLength(4)
+  @MaxLength(128)
+  @ApiProperty()
+  code!: string;
 }

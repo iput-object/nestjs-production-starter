@@ -15,10 +15,10 @@ export const AUTH_POLICY = Object.freeze({
   emailVerifyTtlSeconds: 600,
   twoFactorChallengeTtlSeconds: 180,
   identifierChangeTtlSeconds: 600,
+  /** Timed sudo grant after password / OTP / 2FA elevation. */
+  sudoGrantTtlSeconds: 300,
   /** Soft-deleted identifiers become reclaimable after this grace period. */
   identifierReclaimGraceSeconds: 30 * 24 * 3600,
-  /** How long a sudo-elevated access token stays valid. */
-  sudoTtlSeconds: 600,
 });
 
 export const OTP_POLICY = Object.freeze({
@@ -27,6 +27,8 @@ export const OTP_POLICY = Object.freeze({
   resendCooldownSeconds: 60,
   emailTtlSeconds: 600,
   smsTtlSeconds: 600,
+  /** Short-lived OTP for sudo elevation (code only). */
+  sudoOtpTtlSeconds: 180,
   // Per-destination send ceiling within a rolling window (abuse / enumeration).
   maxSendsPerWindow: 5,
   sendThrottleWindowSeconds: 3600,

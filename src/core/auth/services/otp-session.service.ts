@@ -10,14 +10,17 @@ import { CryptoService } from '@/common/crypto/crypto.service';
 import { format } from '@/common/utils/format.util';
 import locals from '@/locals';
 import {
+  OTP_PURPOSE_REGISTRY,
+  tokensForPurpose,
+  type OtpChannel,
+  type OtpPurpose,
+} from '@/core/auth/constants/otp-purpose.constants';
+import {
   AuthCacheService,
-  OtpPurpose,
   OtpSessionRecord,
 } from '@/core/auth/services/auth-cache.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import {
-  AuthMailType,
   AuthOtpTransporter,
   TransportType,
 } from '@/core/auth/transporters/auth-otp.transporter';
@@ -25,27 +28,21 @@ import {
 export interface IssueOtpSessionInput {
   userId: string;
   purpose: OtpPurpose;
-  channel: 'email' | 'sms';
+  channel: OtpChannel;
   destination: string;
-  mailType: AuthMailType;
-  /** Which secrets to mint: CODE (OTP), TOKEN (magic link), or both. */
-  tokens: TokenType[];
-  ttlSeconds: number;
 }
 
 export interface ConsumedOtpSession {
   userId: string;
   purpose: OtpPurpose;
   destination: string;
+  channel: OtpChannel;
 }
 
 /**
- * Owns the unified OTP challenge: one Redis record holds both the code hash and
- * the link token hash, and verifying via either method deletes that record so
- * the other stops working immediately ("one send, one session, one winner").
- *
- * Generation + delivery are delegated to AuthOtpTransporter; this service only
- * persists the resulting hashes and verifies them. No raw secret is stored.
+ * Unified OTP challenge: one Redis record holds code and/or link token hashes.
+ * Consuming either secret destroys the session ("one send, one winner").
+ * Sessions are keyed by userId + purpose + channel so email and SMS do not collide.
  */
 @Injectable()
 export class OtpSessionService {
@@ -57,14 +54,16 @@ export class OtpSessionService {
   ) {}
 
   async issue(input: IssueOtpSessionInput): Promise<void> {
-    if (input.tokens.length === 0) {
+    const config = OTP_PURPOSE_REGISTRY[input.purpose];
+    const tokens = tokensForPurpose(input.purpose, input.channel);
+    if (tokens.length === 0) {
       return;
     }
 
-    // Resend cooldown: a live session sent within the cooldown blocks re-send.
     const existing = await this.cache.getOtpSession(
       input.userId,
       input.purpose,
+      input.channel,
     );
     if (existing) {
       const ageSeconds = Math.floor((Date.now() - existing.sentAt) / 1000);
@@ -76,9 +75,9 @@ export class OtpSessionService {
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
+      await this.destroy(existing);
     }
 
-    // Per-destination send ceiling within a rolling window.
     const sends = await this.cache.getOtpThrottle(
       input.channel,
       input.destination,
@@ -94,15 +93,15 @@ export class OtpSessionService {
       input.channel === 'email' ? [TransportType.EMAIL] : [TransportType.SMS];
 
     const generated = await this.transporter.dispatch({
-      type: input.mailType,
+      type: config.mailType,
       transports,
-      tokens: input.tokens,
+      tokens,
       recipient: {
         userId: input.userId,
         email: input.channel === 'email' ? input.destination : undefined,
         phoneNumber: input.channel === 'sms' ? input.destination : undefined,
       },
-      expiresInMinutes: Math.round(input.ttlSeconds / 60),
+      expiresInMinutes: Math.round(config.ttlSeconds / 60),
     });
 
     if (generated.code) {
@@ -121,6 +120,7 @@ export class OtpSessionService {
     await this.cache.setOtpSession(
       input.userId,
       input.purpose,
+      input.channel,
       {
         userId: input.userId,
         purpose: input.purpose,
@@ -130,16 +130,20 @@ export class OtpSessionService {
         tokenHash: generated.tokenHash,
         attempts: 0,
         sentAt: Date.now(),
-        expiresAt: Date.now() + input.ttlSeconds * 1000,
+        expiresAt: Date.now() + config.ttlSeconds * 1000,
       },
-      input.ttlSeconds,
+      config.ttlSeconds,
     );
 
     if (generated.tokenHash) {
       await this.cache.setOtpTokenIndex(
         generated.tokenHash,
-        { userId: input.userId, purpose: input.purpose },
-        input.ttlSeconds,
+        {
+          userId: input.userId,
+          purpose: input.purpose,
+          channel: input.channel,
+        },
+        config.ttlSeconds,
       );
     }
 
@@ -154,9 +158,10 @@ export class OtpSessionService {
   async verifyByCode(
     userId: string,
     purpose: OtpPurpose,
+    channel: OtpChannel,
     code: string,
   ): Promise<ConsumedOtpSession> {
-    const record = await this.cache.getOtpSession(userId, purpose);
+    const record = await this.cache.getOtpSession(userId, purpose, channel);
     if (!record?.codeHash) {
       throw new UnauthorizedException(locals.auth.code_invalid_or_expired);
     }
@@ -174,6 +179,7 @@ export class OtpSessionService {
       await this.cache.setOtpSession(
         userId,
         purpose,
+        channel,
         { ...record, attempts: record.attempts + 1 },
         this.remainingTtlSeconds(record),
       );
@@ -184,16 +190,26 @@ export class OtpSessionService {
     return this.consumed(record);
   }
 
-  async verifyByToken(rawToken: string): Promise<ConsumedOtpSession> {
+  async verifyByToken(
+    rawToken: string,
+    expectedPurpose: OtpPurpose,
+  ): Promise<ConsumedOtpSession> {
     const tokenHash = this.crypto.hashSha256(rawToken);
     const index = await this.cache.getOtpTokenIndex(tokenHash);
-    if (!index) {
+    if (!index || index.purpose !== expectedPurpose) {
       throw new UnauthorizedException(locals.auth.link_invalid_or_expired);
     }
 
-    const record = await this.cache.getOtpSession(index.userId, index.purpose);
-    if (!record || record.tokenHash !== tokenHash) {
-      // Index outlived its record (already consumed); clean up the dangling key.
+    const record = await this.cache.getOtpSession(
+      index.userId,
+      index.purpose,
+      index.channel,
+    );
+    if (
+      !record ||
+      record.tokenHash !== tokenHash ||
+      record.purpose !== expectedPurpose
+    ) {
       await this.cache.deleteOtpTokenIndex(tokenHash);
       throw new UnauthorizedException(locals.auth.link_invalid_or_expired);
     }
@@ -202,9 +218,12 @@ export class OtpSessionService {
     return this.consumed(record);
   }
 
-  /** Single exit point: removes the record and its token index together. */
   private async destroy(record: OtpSessionRecord): Promise<void> {
-    await this.cache.deleteOtpSession(record.userId, record.purpose);
+    await this.cache.deleteOtpSession(
+      record.userId,
+      record.purpose,
+      record.channel,
+    );
     if (record.tokenHash) {
       await this.cache.deleteOtpTokenIndex(record.tokenHash);
     }
@@ -215,6 +234,7 @@ export class OtpSessionService {
       userId: record.userId,
       purpose: record.purpose,
       destination: record.destination,
+      channel: record.channel,
     };
   }
 

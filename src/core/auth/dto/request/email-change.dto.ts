@@ -1,23 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
-  IsOptional,
   IsString,
   IsPhoneNumber,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
-export class StepUpPasswordDto {
-  @IsString()
-  @MinLength(8)
-  @MaxLength(128)
-  @ApiProperty()
-  currentPassword!: string;
-}
-
-export class RequestEmailChangeDto extends StepUpPasswordDto {
+export class RequestEmailChangeDto {
   @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
   @IsEmail()
   @MaxLength(320)
@@ -40,7 +31,7 @@ export class ConfirmEmailChangeOtpDto {
   code!: string;
 }
 
-export class RequestPhoneChangeDto extends StepUpPasswordDto {
+export class RequestPhoneChangeDto {
   @IsPhoneNumber()
   @ApiProperty()
   phone!: string;
@@ -54,7 +45,7 @@ export class ConfirmPhoneChangeDto {
   code!: string;
 }
 
-export class AddEmailDto extends StepUpPasswordDto {
+export class AddEmailDto {
   @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
   @IsEmail()
   @MaxLength(320)
@@ -62,7 +53,7 @@ export class AddEmailDto extends StepUpPasswordDto {
   email!: string;
 }
 
-export class AddPhoneDto extends StepUpPasswordDto {
+export class AddPhoneDto {
   @IsPhoneNumber()
   @ApiProperty()
   phone!: string;
@@ -81,11 +72,4 @@ export class ConfirmIdentifierTokenDto {
   @MinLength(20)
   @ApiProperty()
   token!: string;
-}
-
-export class IdentifierActionDto extends StepUpPasswordDto {
-  @IsOptional()
-  @IsString()
-  @ApiPropertyOptional()
-  reason?: string;
 }

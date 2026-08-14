@@ -6,32 +6,16 @@ import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { SMS_PORT } from '@/infrastructure/sms/sms.constants';
 import type { SmsPort } from '@/infrastructure/sms/sms.types';
 import {
+  AuthMailType,
+  TransportType,
+} from '@/core/auth/constants/auth-mail.constants';
+import {
   GeneratedTokens,
   OtpGeneratorHelper,
   TokenType,
 } from '@/core/auth/helpers/otp-generator.helper';
 
-/**
- * The kind of auth email/SMS being sent. Drives subject + template selection.
- *
- * Values are kept in sync with `OtpPurpose` (auth-cache.service) where they
- * correspond, so a caller can pass the same constant through to the cache.
- * `WELCOME` and `CHANGE_EMAIL` have no OTP purpose of their own.
- */
-export enum AuthMailType {
-  WELCOME = 'welcome',
-  REGISTER = 'register-verify',
-  RESET_PASSWORD = 'reset-password',
-  LOGIN = 'login',
-  ENROLL_2FA = 'enroll-2fa',
-  CHANGE_EMAIL = 'change-email',
-  CHANGE_PHONE = 'change-phone',
-}
-
-export enum TransportType {
-  EMAIL = 'email',
-  SMS = 'sms',
-}
+export { AuthMailType, TransportType };
 
 export interface AuthOtpRecipient {
   userId: string;
@@ -226,6 +210,19 @@ export class AuthOtpTransporter {
             expiry && `<p>${expiry}</p>`,
           ]),
         };
+      case AuthMailType.SUDO:
+        return {
+          subject: 'Confirm your identity',
+          text: this.join([
+            code && `Your confirmation code is ${code}.`,
+            expiry,
+          ]),
+          html: this.join([
+            code &&
+              `<p>Your confirmation code is <strong>${code}</strong>.</p>`,
+            expiry && `<p>${expiry}</p>`,
+          ]),
+        };
     }
   }
 
@@ -257,6 +254,8 @@ export class AuthOtpTransporter {
         );
       case AuthMailType.CHANGE_PHONE:
         return this.join([`Your phone confirmation ${secret}.`, expiry], ' ');
+      case AuthMailType.SUDO:
+        return this.join([`Your confirmation ${secret}.`, expiry], ' ');
     }
   }
 
@@ -280,6 +279,7 @@ export class AuthOtpTransporter {
       case AuthMailType.WELCOME:
       case AuthMailType.REGISTER:
       case AuthMailType.ENROLL_2FA:
+      case AuthMailType.SUDO:
         return 'verify-email';
     }
   }

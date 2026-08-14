@@ -16,6 +16,7 @@ const REDACT_PATHS = [
   'req.body.passwordConfirmation',
   'req.body.currentPassword',
   'req.body.newPassword',
+  'req.body.code',
   'req.body.token',
   'req.body.refreshToken',
 ];

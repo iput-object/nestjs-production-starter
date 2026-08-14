@@ -2,11 +2,10 @@ import {
   ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
-import { AUTH_POLICY } from '@/configs/auth.policy';
+import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
 import { MAILER_PORT } from '@/infrastructure/mailer/mailer.constants';
 import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { AuditService } from '@/core/audit/services/audit.service';
@@ -19,13 +18,11 @@ import {
   normalizeEmail,
   normalizePhone,
 } from '@/core/auth/helpers/normalize.helper';
-import { TokenType } from '@/core/auth/helpers/otp-generator.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
-import { StepUpService } from '@/core/auth/services/step-up.service';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
-import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import locals from '@/locals';
 
 @Injectable()
@@ -34,7 +31,7 @@ export class ChangeContactService {
     private readonly credentials: CredentialRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly otpSession: OtpSessionService,
-    private readonly stepUp: StepUpService,
+    private readonly sudo: SudoService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
@@ -42,10 +39,10 @@ export class ChangeContactService {
 
   async requestEmailChange(
     userId: string,
+    sessionId: string,
     newEmail: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
 
     const email = normalizeEmail(newEmail);
     const owner = await this.identifiers.findByTypeValue(
@@ -63,12 +60,9 @@ export class ChangeContactService {
 
     await this.otpSession.issue({
       userId,
-      purpose: 'change-email',
+      purpose: OtpPurpose.CHANGE_EMAIL,
       channel: 'email',
       destination: email,
-      mailType: AuthMailType.CHANGE_EMAIL,
-      tokens: [TokenType.CODE, TokenType.TOKEN],
-      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
     });
 
     if (primary?.value) {
@@ -87,12 +81,10 @@ export class ChangeContactService {
   async confirmEmailChange(
     token: string,
   ): Promise<{ userId: string; email: string }> {
-    const consumed = await this.otpSession.verifyByToken(token);
-    if (consumed.purpose !== 'change-email') {
-      throw new NotFoundException(
-        locals.auth.confirmation_link_invalid_or_expired,
-      );
-    }
+    const consumed = await this.otpSession.verifyByToken(
+      token,
+      OtpPurpose.CHANGE_EMAIL,
+    );
     return this.applyEmailChange(consumed.userId, consumed.destination);
   }
 
@@ -102,7 +94,8 @@ export class ChangeContactService {
   ): Promise<{ userId: string; email: string }> {
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'change-email',
+      OtpPurpose.CHANGE_EMAIL,
+      'email',
       code,
     );
     return this.applyEmailChange(consumed.userId, consumed.destination);
@@ -110,10 +103,10 @@ export class ChangeContactService {
 
   async requestPhoneChange(
     userId: string,
+    sessionId: string,
     newPhone: string,
-    currentPassword: string,
   ): Promise<void> {
-    await this.stepUp.requirePassword(userId, currentPassword);
+    await this.sudo.requireSudo(userId, sessionId);
 
     const phone = normalizePhone(newPhone);
     const owner = await this.identifiers.findByTypeValue(
@@ -126,12 +119,9 @@ export class ChangeContactService {
 
     await this.otpSession.issue({
       userId,
-      purpose: 'change-phone',
+      purpose: OtpPurpose.CHANGE_PHONE,
       channel: 'sms',
       destination: phone,
-      mailType: AuthMailType.CHANGE_PHONE,
-      tokens: [TokenType.CODE],
-      ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
     });
 
     await this.audit.record({
@@ -146,7 +136,8 @@ export class ChangeContactService {
   async confirmPhoneChange(userId: string, code: string): Promise<void> {
     const consumed = await this.otpSession.verifyByCode(
       userId,
-      'change-phone',
+      OtpPurpose.CHANGE_PHONE,
+      'sms',
       code,
     );
     await this.applyPhoneChange(consumed.userId, consumed.destination);
