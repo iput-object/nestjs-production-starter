@@ -370,9 +370,14 @@ export class TwoFactorService {
       throw new UnauthorizedException(locals.auth.invalid_code);
     }
 
-    await this.twoFactor.touchLastUsed(method.id);
-    await this.cache.deleteTwoFactorChallenge(challengeId);
+    // Claim the challenge only after the factor succeeds so typos can retry,
+    // while parallel successes still mint at most one session.
+    const claimed = await this.cache.takeTwoFactorChallenge(challengeId);
+    if (!claimed) {
+      throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
+    }
 
+    await this.twoFactor.touchLastUsed(method.id);
     return this.tokens.issue(user.id);
   }
 
@@ -394,9 +399,6 @@ export class TwoFactorService {
     code: string,
   ): Promise<boolean> {
     const codeHash = this.crypto.hashSha256(code);
-    const backup = await this.twoFactor.findBackupCode(userId, codeHash);
-    if (!backup) return false;
-    await this.twoFactor.consumeBackupCode(backup.id);
-    return true;
+    return this.twoFactor.tryClaimBackupCode(userId, codeHash);
   }
 }

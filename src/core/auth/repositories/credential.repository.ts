@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Credential } from '@prisma-client';
+import { Prisma, type Credential } from '@prisma-client';
 import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
 import { PrismaService } from '@/database/prisma.service';
 
@@ -52,6 +52,60 @@ export class CredentialRepository {
 
   delete(id: string): Promise<Credential> {
     return this.prisma.credential.delete({ where: { id } });
+  }
+
+  /**
+   * Delete an OAuth credential only when another login method remains.
+   * Runs in a serializable transaction so parallel unlinks cannot both pass.
+   * Returns false when the credential is missing or would be the last method.
+   */
+  async deleteOAuthIfNotLastLogin(
+    userId: string,
+    credentialId: string,
+  ): Promise<'deleted' | 'missing' | 'last'> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const credential = await tx.credential.findFirst({
+            where: { id: credentialId, userId },
+          });
+          if (!credential) {
+            return 'missing';
+          }
+          if (
+            credential.provider !== 'GOOGLE' &&
+            credential.provider !== 'APPLE'
+          ) {
+            return 'missing';
+          }
+
+          const others = await tx.credential.findMany({
+            where: { userId, id: { not: credentialId } },
+          });
+          const hasPassword = others.some(
+            (row) => row.provider === 'EMAIL' && Boolean(row.passwordHash),
+          );
+          const otherOauth = others.some(
+            (row) => row.provider === 'GOOGLE' || row.provider === 'APPLE',
+          );
+          if (!hasPassword && !otherOauth) {
+            return 'last';
+          }
+
+          await tx.credential.delete({ where: { id: credentialId } });
+          return 'deleted';
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2034'
+      ) {
+        return 'last';
+      }
+      throw err;
+    }
   }
 
   listForUser(userId: string): Promise<Credential[]> {

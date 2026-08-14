@@ -158,7 +158,6 @@ export class PasswordResetService {
       code,
     );
     await this.applyNewPassword(challenge.userId, newPassword);
-    await this.cache.deletePasswordResetChallenge(resetId);
   }
 
   private async resolveOwner(raw: string) {
@@ -181,6 +180,7 @@ export class PasswordResetService {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.credentials.updatePasswordHash(credential.id, passwordHash);
     await this.tokens.revokeAllForUser(userId);
+    await this.cache.deletePasswordResetChallengeForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.PASSWORD_RESET,

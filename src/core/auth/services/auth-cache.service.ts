@@ -193,6 +193,15 @@ export class AuthCacheService {
     );
   }
 
+  /** Atomically take the challenge so only one verify can succeed. */
+  takeTwoFactorChallenge(
+    challengeId: string,
+  ): Promise<TwoFactorChallengeRecord | null> {
+    return this.cache.take<TwoFactorChallengeRecord>(
+      this.twoFactorChallengeKey(challengeId),
+    );
+  }
+
   async deleteTwoFactorChallenge(challengeId: string): Promise<void> {
     await this.cache.del(this.twoFactorChallengeKey(challengeId));
   }
@@ -208,6 +217,11 @@ export class AuthCacheService {
       record,
       ttlSeconds,
     );
+    await this.cache.set(
+      this.passwordResetUserKey(record.userId),
+      resetId,
+      ttlSeconds,
+    );
   }
 
   getPasswordResetChallenge(
@@ -219,7 +233,21 @@ export class AuthCacheService {
   }
 
   async deletePasswordResetChallenge(resetId: string): Promise<void> {
+    const record = await this.getPasswordResetChallenge(resetId);
     await this.cache.del(this.passwordResetChallengeKey(resetId));
+    if (record?.userId) {
+      await this.cache.del(this.passwordResetUserKey(record.userId));
+    }
+  }
+
+  /** Clear any open forgot-password picker for the user (OTP or magic-link). */
+  async deletePasswordResetChallengeForUser(userId: string): Promise<void> {
+    const resetId = await this.cache.take<string>(
+      this.passwordResetUserKey(userId),
+    );
+    if (resetId) {
+      await this.cache.del(this.passwordResetChallengeKey(resetId));
+    }
   }
 
   // ---------- Login fail counter ----------
@@ -286,6 +314,9 @@ export class AuthCacheService {
   }
   private passwordResetChallengeKey(resetId: string): string {
     return `password-reset:${resetId}`;
+  }
+  private passwordResetUserKey(userId: string): string {
+    return `password-reset-user:${userId}`;
   }
   private loginFailKey(emailHash: string): string {
     return `login:fail:${emailHash}`;

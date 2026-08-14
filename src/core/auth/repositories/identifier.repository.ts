@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { User, UserIdentifier } from '@prisma-client';
+import { Prisma, type User, type UserIdentifier } from '@prisma-client';
 import { IdentifierType } from '@prisma-client';
 import { PrismaService } from '@/database/prisma.service';
 
@@ -133,6 +133,52 @@ export class IdentifierRepository {
 
   delete(id: string): Promise<UserIdentifier> {
     return this.prisma.userIdentifier.delete({ where: { id } });
+  }
+
+  /**
+   * Delete a non-primary identifier only when it is not the last verified
+   * recovery method. Serializable so parallel removes cannot both pass.
+   */
+  async deleteIfNotLastVerifiedRecovery(
+    userId: string,
+    identifierId: string,
+  ): Promise<'deleted' | 'missing' | 'primary' | 'last'> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const identifier = await tx.userIdentifier.findFirst({
+            where: { id: identifierId, userId },
+          });
+          if (!identifier) {
+            return 'missing';
+          }
+          if (identifier.isPrimary) {
+            return 'primary';
+          }
+
+          if (identifier.isVerified) {
+            const verifiedCount = await tx.userIdentifier.count({
+              where: { userId, isVerified: true },
+            });
+            if (verifiedCount <= 1) {
+              return 'last';
+            }
+          }
+
+          await tx.userIdentifier.delete({ where: { id: identifierId } });
+          return 'deleted';
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2034'
+      ) {
+        return 'last';
+      }
+      throw err;
+    }
   }
 
   /**

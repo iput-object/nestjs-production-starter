@@ -82,19 +82,28 @@ export class TwoFactorRepository {
     });
   }
 
-  findBackupCode(
+  /**
+   * Atomically mark a backup code used. Returns true only for the winner of
+   * a concurrent claim on the same unused hash.
+   */
+  async tryClaimBackupCode(
     userId: string,
     codeHash: string,
-  ): Promise<TwoFactorBackupCode | null> {
-    return this.prisma.twoFactorBackupCode.findFirst({
+  ): Promise<boolean> {
+    const result = await this.prisma.twoFactorBackupCode.updateMany({
       where: { userId, codeHash, usedAt: null },
+      data: { usedAt: new Date() },
     });
+    return result.count === 1;
   }
 
-  consumeBackupCode(id: string): Promise<TwoFactorBackupCode> {
-    return this.prisma.twoFactorBackupCode.update({
+  updateDestination(
+    id: string,
+    destination: string,
+  ): Promise<TwoFactorMethod> {
+    return this.prisma.twoFactorMethod.update({
       where: { id },
-      data: { usedAt: new Date() },
+      data: { destination },
     });
   }
 

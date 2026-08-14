@@ -6,6 +6,7 @@ import {
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
+import { TwoFactorMethodType } from '@/core/auth/constants/two-factor-method.constants';
 import { MAILER_PORT } from '@/infrastructure/mailer/mailer.constants';
 import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
 import { AuditService } from '@/core/audit/services/audit.service';
@@ -20,6 +21,7 @@ import {
 } from '@/core/auth/helpers/normalize.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
@@ -30,6 +32,7 @@ export class ChangeContactService {
   constructor(
     private readonly credentials: CredentialRepository,
     private readonly identifiers: IdentifierRepository,
+    private readonly twoFactor: TwoFactorRepository,
     private readonly otpSession: OtpSessionService,
     private readonly sudo: SudoService,
     private readonly tokens: TokenService,
@@ -190,6 +193,12 @@ export class ChangeContactService {
       await this.credentials.updateProviderId(credential.id, email);
     }
 
+    await this.syncTwoFactorDestination(
+      userId,
+      TwoFactorMethodType.EMAIL_OTP,
+      email,
+    );
+
     await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
@@ -238,6 +247,12 @@ export class ChangeContactService {
       });
     }
 
+    await this.syncTwoFactorDestination(
+      userId,
+      TwoFactorMethodType.SMS_OTP,
+      phone,
+    );
+
     await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
@@ -246,6 +261,34 @@ export class ChangeContactService {
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
       metadata: { phone, mode: 'change-confirm' },
     });
+  }
+
+  /**
+   * Keep enrolled email/SMS 2FA pointed at a live account identifier after a
+   * primary contact change. If the stored destination is no longer verified on
+   * the account, retarget it to the new primary.
+   */
+  private async syncTwoFactorDestination(
+    userId: string,
+    type:
+      | typeof TwoFactorMethodType.EMAIL_OTP
+      | typeof TwoFactorMethodType.SMS_OTP,
+    newDestination: string,
+  ): Promise<void> {
+    const method = await this.twoFactor.findByUserAndType(userId, type);
+    if (!method?.isEnabled) {
+      return;
+    }
+
+    const verified = await this.identifiers.listVerifiedForUser(userId);
+    const stillValid = verified.some(
+      (row) => row.value === method.destination,
+    );
+    if (stillValid) {
+      return;
+    }
+
+    await this.twoFactor.updateDestination(method.id, newDestination);
   }
 
   private async notifyOldEmail(

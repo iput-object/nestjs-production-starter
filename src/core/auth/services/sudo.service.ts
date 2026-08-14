@@ -300,10 +300,7 @@ export class SudoService {
     code: string,
   ): Promise<boolean> {
     const codeHash = this.crypto.hashSha256(code);
-    const backup = await this.twoFactor.findBackupCode(userId, codeHash);
-    if (!backup) return false;
-    await this.twoFactor.consumeBackupCode(backup.id);
-    return true;
+    return this.twoFactor.tryClaimBackupCode(userId, codeHash);
   }
 
   private async mint(

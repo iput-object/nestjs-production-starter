@@ -161,24 +161,30 @@ export class IdentifierService {
     identifierId: string,
   ): Promise<void> {
     await this.sudo.consumeSudo(userId, sessionId);
+
     const identifier = await this.identifiers.findById(identifierId);
     if (!identifier || identifier.userId !== userId) {
       throw new NotFoundException(locals.auth.identifier_not_found);
     }
-    if (identifier.isPrimary) {
+
+    const outcome = await this.identifiers.deleteIfNotLastVerifiedRecovery(
+      userId,
+      identifierId,
+    );
+    if (outcome === 'missing') {
+      throw new NotFoundException(locals.auth.identifier_not_found);
+    }
+    if (outcome === 'primary') {
       throw new BadRequestException(
         locals.auth.cannot_remove_primary_identifier,
       );
     }
-
-    const verifiedCount = await this.identifiers.countVerifiedForUser(userId);
-    if (identifier.isVerified && verifiedCount <= 1) {
+    if (outcome === 'last') {
       throw new BadRequestException(
         locals.auth.cannot_remove_last_recovery_method,
       );
     }
 
-    await this.identifiers.delete(identifierId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.IDENTIFIER_REMOVED,

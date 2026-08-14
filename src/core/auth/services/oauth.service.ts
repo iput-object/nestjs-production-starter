@@ -271,23 +271,19 @@ export class OAuthService {
       throw new NotFoundException(locals.auth.oauth_not_linked);
     }
 
-    const all = await this.credentials.listForUser(userId);
-    const hasPassword = all.some(
-      (row) =>
-        row.provider === AuthProvider.EMAIL && Boolean(row.passwordHash),
+    await this.sudo.consumeSudo(userId, sessionId);
+
+    const outcome = await this.credentials.deleteOAuthIfNotLastLogin(
+      userId,
+      credential.id,
     );
-    const otherOauth = all.some(
-      (row) =>
-        row.id !== credential.id &&
-        (row.provider === AuthProvider.GOOGLE ||
-          row.provider === AuthProvider.APPLE),
-    );
-    if (!hasPassword && !otherOauth) {
+    if (outcome === 'missing') {
+      throw new NotFoundException(locals.auth.oauth_not_linked);
+    }
+    if (outcome === 'last') {
       throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
     }
 
-    await this.sudo.consumeSudo(userId, sessionId);
-    await this.credentials.delete(credential.id);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.OAUTH_UNLINKED,
