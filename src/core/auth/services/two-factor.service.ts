@@ -6,7 +6,11 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { type TwoFactorMethod, type User, IdentifierType } from '@prisma-client';
+import {
+  type TwoFactorMethod,
+  type User,
+  IdentifierType,
+} from '@prisma-client';
 import {
   TwoFactorMethodType,
   type TwoFactorMethodTypeValue,
@@ -20,7 +24,7 @@ import {
   AuthCacheService,
   TwoFactorChallengeRecord,
 } from '@/core/auth/services/auth-cache.service';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
   AUTH_AUDIT_RESOURCE,
@@ -284,9 +288,7 @@ export class TwoFactorService {
 
     return {
       challengeId,
-      methods: enabledMethods.map(
-        (m) => m.type as TwoFactorMethodTypeValue,
-      ),
+      methods: enabledMethods.map((m) => m.type as TwoFactorMethodTypeValue),
     };
   }
 

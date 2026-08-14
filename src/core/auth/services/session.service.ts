@@ -10,7 +10,7 @@ import {
   AUTH_AUDIT_RESOURCE,
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
 import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
@@ -80,10 +80,7 @@ export class SessionService {
     });
   }
 
-  async revokeAll(
-    userId: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async revokeAll(userId: string, context: RequestContext = {}): Promise<void> {
     await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,

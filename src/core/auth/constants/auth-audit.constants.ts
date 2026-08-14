@@ -1,4 +1,4 @@
-import { AUDIT_MODULE } from '@/common/audit/constants/audit.constants';
+import { AUDIT_MODULE } from '@/core/audit/constants/audit.constants';
 
 export const AUTH_AUDIT_MODULE = AUDIT_MODULE.AUTH;
 

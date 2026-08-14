@@ -9,7 +9,7 @@ import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { MAILER_PORT } from '@/infrastructure/mailer/mailer.constants';
 import type { MailerPort } from '@/infrastructure/mailer/mailer.types';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
   AUTH_AUDIT_RESOURCE,

@@ -8,7 +8,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
   AUTH_AUDIT_RESOURCE,

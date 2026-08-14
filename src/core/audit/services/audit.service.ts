@@ -2,14 +2,14 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { Activity } from '@prisma-client';
 import { Queue } from 'bullmq';
-import { AUDIT_PIPELINE } from '@/common/audit/constants/audit.constants';
-import { ActivityRepository } from '@/common/audit/repositories/activity.repository';
-import { AuditBufferService } from '@/common/audit/services/audit-buffer.service';
+import { AUDIT_PIPELINE } from '@/core/audit/constants/audit.constants';
+import { ActivityRepository } from '@/core/audit/repositories/activity.repository';
+import { AuditBufferService } from '@/core/audit/services/audit-buffer.service';
 import type {
   AuditActivityRow,
   ListAuditFilter,
   RecordAuditInput,
-} from '@/common/audit/types/audit.types';
+} from '@/core/audit/types/audit.types';
 import type { PaginatedResult } from '@/common/pagination/pagination.types';
 import {
   AUDIT_JOB_BULK,

@@ -5,17 +5,13 @@ import configuration, { Config } from '@/configs/environment.config';
 import { ObservabilityModule } from '@/infrastructure/observability/observability.module';
 import { PrismaModule } from '@/database/prisma.module';
 import { CommonModule } from '@/common/common.module';
-import { AuditModule } from '@/common/audit/audit.module';
+import { CoreModule } from '@/core/core.module';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
 import { CryptoModule } from '@/common/crypto/crypto.module';
 import { QueueModule } from '@/infrastructure/queue/queue.module';
 import { MailerModule } from '@/infrastructure/mailer/mailer.module';
 import { SmsModule } from '@/infrastructure/sms/sms.module';
 import { StorageModule } from '@/infrastructure/storage/storage.module';
-import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
-import { HealthModule } from '@/core/health/health.module';
-import { AuthModule } from '@/core/auth/auth.module';
-import { FilesModule } from '@/core/files/files.module';
 
 @Module({
   imports: [
@@ -44,11 +40,7 @@ import { FilesModule } from '@/core/files/files.module';
     MailerModule,
     SmsModule,
     StorageModule,
-    AuditModule,
-    AuthModule,
-    FcmTokenModule,
-    FilesModule,
-    HealthModule,
+    CoreModule,
   ],
   controllers: [],
   providers: [],

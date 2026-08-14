@@ -15,7 +15,7 @@ import {
   AUTH_AUDIT_RESOURCE,
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
 import { BCRYPT_ROUNDS } from '@/core/auth/auth.constants';

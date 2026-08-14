@@ -256,10 +256,7 @@ export class AuthOtpTransporter {
           ' ',
         );
       case AuthMailType.CHANGE_PHONE:
-        return this.join(
-          [`Your phone confirmation ${secret}.`, expiry],
-          ' ',
-        );
+        return this.join([`Your phone confirmation ${secret}.`, expiry], ' ');
     }
   }
 

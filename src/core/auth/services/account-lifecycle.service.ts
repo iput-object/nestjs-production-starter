@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { UserStatus } from '@prisma-client';
 import { AUTH_POLICY } from '@/configs/auth.policy';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
   AUTH_AUDIT_RESOURCE,

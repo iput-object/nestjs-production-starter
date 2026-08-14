@@ -1,10 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { AUDIT_PIPELINE } from '@/common/audit/constants/audit.constants';
-import { ActivityRepository } from '@/common/audit/repositories/activity.repository';
-import { AuditBufferService } from '@/common/audit/services/audit-buffer.service';
-import type { AuditActivityRow } from '@/common/audit/types/audit.types';
+import { AUDIT_PIPELINE } from '@/core/audit/constants/audit.constants';
+import { ActivityRepository } from '@/core/audit/repositories/activity.repository';
+import { AuditBufferService } from '@/core/audit/services/audit-buffer.service';
+import type { AuditActivityRow } from '@/core/audit/types/audit.types';
 import {
   AUDIT_JOB_BULK,
   AUDIT_JOB_FLUSH,

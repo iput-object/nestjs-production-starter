@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
-import { AUDIT_PIPELINE } from '@/common/audit/constants/audit.constants';
-import type { AuditActivityRow } from '@/common/audit/types/audit.types';
+import { AUDIT_PIPELINE } from '@/core/audit/constants/audit.constants';
+import type { AuditActivityRow } from '@/core/audit/types/audit.types';
 import { REDIS_CLIENT } from '@/infrastructure/redis/redis.constants';
 
 @Injectable()

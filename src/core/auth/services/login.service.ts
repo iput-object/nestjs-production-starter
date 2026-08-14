@@ -10,7 +10,7 @@ import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import type { TwoFactorMethodTypeValue } from '@/core/auth/constants/two-factor-method.constants';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import {
   AUTH_AUDIT_MODULE,
   AUTH_AUDIT_RESOURCE,

@@ -13,7 +13,7 @@ import {
   type AuthProviderValue,
 } from '@/core/auth/constants/auth-provider.constants';
 import { Config } from '@/configs/environment.config';
-import { AuditService } from '@/common/audit/services/audit.service';
+import { AuditService } from '@/core/audit/services/audit.service';
 import { PrismaService } from '@/database/prisma.service';
 import {
   AUTH_AUDIT_MODULE,

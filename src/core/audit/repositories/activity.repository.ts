@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import type { Activity, AuditOutcome, Prisma } from '@prisma-client';
 import { PrismaService } from '@/database/prisma.service';
 import { prismaPaginate } from '@/common/pagination/prisma-paginate';
-import type { Pagination, PaginatedResult } from '@/common/pagination/pagination.types';
+import type {
+  Pagination,
+  PaginatedResult,
+} from '@/common/pagination/pagination.types';
 
 export interface CreateActivityInput {
   module: string;
