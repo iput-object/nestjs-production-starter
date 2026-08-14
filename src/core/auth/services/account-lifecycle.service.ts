@@ -28,20 +28,21 @@ export class AccountLifecycleService {
   ) {}
 
   async deactivate(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const user = await this.users.findById(userId);
-    if (!user) {
-      throw new NotFoundException(locals.auth.user_not_found);
-    }
+    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+      const user = await this.users.findById(userId);
+      if (!user) {
+        throw new NotFoundException(locals.auth.user_not_found);
+      }
 
-    await this.users.softDelete(userId);
-    await this.tokens.revokeAllForUser(userId);
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.ACCOUNT_DEACTIVATED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.USER,
-      resourceId: userId,
+      await this.users.softDelete(userId);
+      await this.tokens.revokeAllForUser(userId);
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.ACCOUNT_DEACTIVATED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.USER,
+        resourceId: userId,
+      });
     });
   }
 

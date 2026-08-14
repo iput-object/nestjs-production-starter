@@ -38,46 +38,45 @@ export class TotpService {
   ) {}
 
   async enroll(user: User, sessionId: string): Promise<TotpEnrollmentResult> {
-    await this.sudo.consumeSudo(user.id, sessionId);
+    return this.sudo.runWithSudo(user.id, sessionId, async () => {
+      const existing = await this.twoFactor.findByUserAndType(
+        user.id,
+        TwoFactorMethodType.TOTP,
+      );
+      if (existing?.isEnabled) {
+        throw new ConflictException(locals.auth.totp_already_enabled);
+      }
 
-    const existing = await this.twoFactor.findByUserAndType(
-      user.id,
-      TwoFactorMethodType.TOTP,
-    );
-    if (existing?.isEnabled) {
-      throw new ConflictException(locals.auth.totp_already_enabled);
-    }
+      const totp = this.config.get<Config['totp']>('totp')!;
+      const secret = generateSecret();
+      const primaryEmail = await this.identifiers.findPrimary(
+        user.id,
+        IdentifierType.EMAIL,
+      );
+      const accountName = primaryEmail?.value ?? user.id;
 
-    const totp = this.config.get<Config['totp']>('totp')!;
-    const secret = generateSecret();
-    const primaryEmail = await this.identifiers.findPrimary(
-      user.id,
-      IdentifierType.EMAIL,
-    );
-    const accountName = primaryEmail?.value ?? user.id;
+      const encryptedSecret = this.crypto.encrypt(secret);
+      const method = await this.twoFactor.upsert({
+        userId: user.id,
+        type: TwoFactorMethodType.TOTP,
+        secret: encryptedSecret,
+      });
 
-    const encryptedSecret = this.crypto.encrypt(secret);
-    const method = await this.twoFactor.upsert({
-      userId: user.id,
-      type: TwoFactorMethodType.TOTP,
-      secret: encryptedSecret,
+      const otpauthUrl = generateURI({
+        issuer: totp.issuer,
+        label: accountName,
+        secret,
+        strategy: 'totp',
+      });
+      const qrDataUrl = await toDataURL(otpauthUrl);
+
+      return {
+        methodId: method.id,
+        secret,
+        otpauthUrl,
+        qrDataUrl,
+      };
     });
-
-    const otpauthUrl = generateURI({
-      issuer: totp.issuer,
-      label: accountName,
-      secret,
-      strategy: 'totp',
-    });
-    const qrDataUrl = await toDataURL(otpauthUrl);
-
-
-    return {
-      methodId: method.id,
-      secret,
-      otpauthUrl,
-      qrDataUrl,
-    };
   }
 
   async confirm(userId: string, code: string): Promise<void> {

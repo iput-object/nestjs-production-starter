@@ -84,8 +84,9 @@ export class OAuthService {
     idToken: string,
   ): Promise<void> {
     const identity = await this.verifyGoogle(idToken);
-    await this.sudo.consumeSudo(userId, sessionId);
-    await this.linkToUser(userId, identity);
+    await this.sudo.runWithSudo(userId, sessionId, () =>
+      this.linkToUser(userId, identity),
+    );
   }
 
   async linkApple(
@@ -94,8 +95,9 @@ export class OAuthService {
     idToken: string,
   ): Promise<void> {
     const identity = await this.verifyApple(idToken);
-    await this.sudo.consumeSudo(userId, sessionId);
-    await this.linkToUser(userId, identity);
+    await this.sudo.runWithSudo(userId, sessionId, () =>
+      this.linkToUser(userId, identity),
+    );
   }
 
   async unlinkGoogle(userId: string, sessionId: string): Promise<void> {
@@ -271,26 +273,29 @@ export class OAuthService {
       throw new NotFoundException(locals.auth.oauth_not_linked);
     }
 
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+      const outcome = await this.credentials.deleteOAuthIfNotLastLogin(
+        userId,
+        credential.id,
+      );
+      if (outcome === 'missing') {
+        throw new NotFoundException(locals.auth.oauth_not_linked);
+      }
+      if (outcome === 'last') {
+        throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
+      }
+      if (outcome === 'conflict') {
+        throw new ConflictException(locals.auth.action_conflict);
+      }
 
-    const outcome = await this.credentials.deleteOAuthIfNotLastLogin(
-      userId,
-      credential.id,
-    );
-    if (outcome === 'missing') {
-      throw new NotFoundException(locals.auth.oauth_not_linked);
-    }
-    if (outcome === 'last') {
-      throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
-    }
-
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.OAUTH_UNLINKED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.USER,
-      resourceId: userId,
-      metadata: { provider },
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.OAUTH_UNLINKED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.USER,
+        resourceId: userId,
+        metadata: { provider },
+      });
     });
   }
 

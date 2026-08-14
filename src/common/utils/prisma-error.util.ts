@@ -39,3 +39,26 @@ export function mapPrismaSerializationFailure<T>(
   }
   throw err;
 }
+
+/**
+ * Run an operation, retrying on Prisma serialization failures (P2034).
+ * After `retries` exhausted, the last error is thrown (caller may map it).
+ */
+export async function runSerializable<T>(
+  operation: () => Promise<T>,
+  options?: { retries?: number },
+): Promise<T> {
+  const retries = options?.retries ?? 3;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (!isPrismaSerializationFailure(err) || attempt === retries) {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IdentifierType, Prisma, type User, type UserIdentifier } from '@prisma-client';
-import { mapPrismaSerializationFailure } from '@/common/utils/prisma-error.util';
+import { mapPrismaSerializationFailure, runSerializable } from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateIdentifierInput {
@@ -137,41 +137,44 @@ export class IdentifierRepository {
 
   /**
    * Delete a non-primary identifier only when it is not the last verified
-   * recovery method. Serializable so parallel removes cannot both pass.
+   * recovery method. Serializable + P2034 retries so parallel removes cannot
+   * both pass.
    */
   async deleteIfNotLastVerifiedRecovery(
     userId: string,
     identifierId: string,
-  ): Promise<'deleted' | 'missing' | 'primary' | 'last'> {
+  ): Promise<'deleted' | 'missing' | 'primary' | 'last' | 'conflict'> {
     try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          const identifier = await tx.userIdentifier.findFirst({
-            where: { id: identifierId, userId },
-          });
-          if (!identifier) {
-            return 'missing';
-          }
-          if (identifier.isPrimary) {
-            return 'primary';
-          }
-
-          if (identifier.isVerified) {
-            const verifiedCount = await tx.userIdentifier.count({
-              where: { userId, isVerified: true },
+      return await runSerializable(() =>
+        this.prisma.$transaction(
+          async (tx) => {
+            const identifier = await tx.userIdentifier.findFirst({
+              where: { id: identifierId, userId },
             });
-            if (verifiedCount <= 1) {
-              return 'last';
+            if (!identifier) {
+              return 'missing';
             }
-          }
+            if (identifier.isPrimary) {
+              return 'primary';
+            }
 
-          await tx.userIdentifier.delete({ where: { id: identifierId } });
-          return 'deleted';
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+            if (identifier.isVerified) {
+              const verifiedCount = await tx.userIdentifier.count({
+                where: { userId, isVerified: true },
+              });
+              if (verifiedCount <= 1) {
+                return 'last';
+              }
+            }
+
+            await tx.userIdentifier.delete({ where: { id: identifierId } });
+            return 'deleted';
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        ),
       );
     } catch (err) {
-      return mapPrismaSerializationFailure(err, 'last');
+      return mapPrismaSerializationFailure(err, 'conflict');
     }
   }
 

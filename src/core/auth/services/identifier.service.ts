@@ -44,23 +44,24 @@ export class IdentifierService {
     sessionId: string,
     email: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const value = normalizeEmail(email);
-    await this.assertAvailable(IdentifierType.EMAIL, value);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
+      const value = normalizeEmail(email);
+      await this.assertAvailable(IdentifierType.EMAIL, value);
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.ADD_EMAIL,
-      channel: 'email',
-      destination: value,
-    });
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.ADD_EMAIL,
+        channel: 'email',
+        destination: value,
+      });
 
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      metadata: { email: value, mode: 'add' },
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+        metadata: { email: value, mode: 'add' },
+      });
     });
   }
 
@@ -95,15 +96,16 @@ export class IdentifierService {
     sessionId: string,
     phone: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const value = normalizePhone(phone);
-    await this.assertAvailable(IdentifierType.PHONE, value);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
+      const value = normalizePhone(phone);
+      await this.assertAvailable(IdentifierType.PHONE, value);
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.ADD_PHONE,
-      channel: 'sms',
-      destination: value,
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.ADD_PHONE,
+        channel: 'sms',
+        destination: value,
+      });
     });
   }
 
@@ -126,32 +128,33 @@ export class IdentifierService {
     sessionId: string,
     identifierId: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const identifier = await this.identifiers.findById(identifierId);
-    if (!identifier || identifier.userId !== userId) {
-      throw new NotFoundException(locals.auth.identifier_not_found);
-    }
-    if (!identifier.isVerified) {
-      throw new BadRequestException(locals.auth.identifier_not_verified);
-    }
-    if (identifier.isPrimary) {
-      throw new BadRequestException(locals.auth.identifier_already_primary);
-    }
+    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+        const identifier = await this.identifiers.findById(identifierId);
+        if (!identifier || identifier.userId !== userId) {
+          throw new NotFoundException(locals.auth.identifier_not_found);
+        }
+        if (!identifier.isVerified) {
+          throw new BadRequestException(locals.auth.identifier_not_verified);
+        }
+        if (identifier.isPrimary) {
+          throw new BadRequestException(locals.auth.identifier_already_primary);
+        }
 
-    await this.identifiers.setPrimary(userId, identifierId);
-    await this.syncEmailCredential(userId, identifier.type, identifier.value);
-    await this.tokens.revokeAllForUser(userId);
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.IDENTIFIER_PRIMARY_CHANGED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      resourceId: identifierId,
-      metadata: {
-        identifierId,
-        type: identifier.type,
-        value: identifier.value,
-      },
+        await this.identifiers.setPrimary(userId, identifierId);
+        await this.syncEmailCredential(userId, identifier.type, identifier.value);
+        await this.tokens.revokeAllForUser(userId);
+        await this.audit.record({
+          module: AUTH_AUDIT_MODULE,
+          action: AuthAuditAction.IDENTIFIER_PRIMARY_CHANGED,
+          userId,
+          resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+          resourceId: identifierId,
+          metadata: {
+            identifierId,
+            type: identifier.type,
+            value: identifier.value,
+          },
+        });
     });
   }
 
@@ -160,42 +163,45 @@ export class IdentifierService {
     sessionId: string,
     identifierId: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+      const identifier = await this.identifiers.findById(identifierId);
+      if (!identifier || identifier.userId !== userId) {
+        throw new NotFoundException(locals.auth.identifier_not_found);
+      }
 
-    const identifier = await this.identifiers.findById(identifierId);
-    if (!identifier || identifier.userId !== userId) {
-      throw new NotFoundException(locals.auth.identifier_not_found);
-    }
-
-    const outcome = await this.identifiers.deleteIfNotLastVerifiedRecovery(
-      userId,
-      identifierId,
-    );
-    if (outcome === 'missing') {
-      throw new NotFoundException(locals.auth.identifier_not_found);
-    }
-    if (outcome === 'primary') {
-      throw new BadRequestException(
-        locals.auth.cannot_remove_primary_identifier,
-      );
-    }
-    if (outcome === 'last') {
-      throw new BadRequestException(
-        locals.auth.cannot_remove_last_recovery_method,
-      );
-    }
-
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.IDENTIFIER_REMOVED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      resourceId: identifierId,
-      metadata: {
+      const outcome = await this.identifiers.deleteIfNotLastVerifiedRecovery(
+        userId,
         identifierId,
-        type: identifier.type,
-        value: identifier.value,
-      },
+      );
+      if (outcome === 'missing') {
+        throw new NotFoundException(locals.auth.identifier_not_found);
+      }
+      if (outcome === 'primary') {
+        throw new BadRequestException(
+          locals.auth.cannot_remove_primary_identifier,
+        );
+      }
+      if (outcome === 'last') {
+        throw new BadRequestException(
+          locals.auth.cannot_remove_last_recovery_method,
+        );
+      }
+      if (outcome === 'conflict') {
+        throw new ConflictException(locals.auth.action_conflict);
+      }
+
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.IDENTIFIER_REMOVED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+        resourceId: identifierId,
+        metadata: {
+          identifierId,
+          type: identifier.type,
+          value: identifier.value,
+        },
+      });
     });
   }
 

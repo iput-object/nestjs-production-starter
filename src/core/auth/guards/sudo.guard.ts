@@ -5,7 +5,8 @@ import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 
 /**
  * Requires an active session-bound sudo grant. Stack after {@link JwtAuthGuard}.
- * Mutations should call {@link SudoService.consumeSudo} to atomically take the grant.
+ * Mutations use {@link SudoService.runWithSudo} (timed window) or
+ * {@link SudoService.runWithSudoOnce} (consume after success).
  */
 @Injectable()
 export class SudoGuard implements CanActivate {

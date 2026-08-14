@@ -45,39 +45,40 @@ export class ChangeContactService {
     sessionId: string,
     newEmail: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
 
-    const email = normalizeEmail(newEmail);
-    const owner = await this.identifiers.findByTypeValue(
-      IdentifierType.EMAIL,
-      email,
-    );
-    if (owner && owner.userId !== userId) {
-      throw new ConflictException(locals.auth.email_already_in_use);
-    }
+      const email = normalizeEmail(newEmail);
+      const owner = await this.identifiers.findByTypeValue(
+        IdentifierType.EMAIL,
+        email,
+      );
+      if (owner && owner.userId !== userId) {
+        throw new ConflictException(locals.auth.email_already_in_use);
+      }
 
-    const primary = await this.identifiers.findPrimary(
-      userId,
-      IdentifierType.EMAIL,
-    );
+      const primary = await this.identifiers.findPrimary(
+        userId,
+        IdentifierType.EMAIL,
+      );
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.CHANGE_EMAIL,
-      channel: 'email',
-      destination: email,
-    });
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.CHANGE_EMAIL,
+        channel: 'email',
+        destination: email,
+      });
 
-    if (primary?.value) {
-      await this.notifyOldEmail(primary.value, email);
-    }
+      if (primary?.value) {
+        await this.notifyOldEmail(primary.value, email);
+      }
 
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      metadata: { email },
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+        metadata: { email },
+      });
     });
   }
 
@@ -109,30 +110,31 @@ export class ChangeContactService {
     sessionId: string,
     newPhone: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
 
-    const phone = normalizePhone(newPhone);
-    const owner = await this.identifiers.findByTypeValue(
-      IdentifierType.PHONE,
-      phone,
-    );
-    if (owner && owner.userId !== userId) {
-      throw new ConflictException(locals.auth.phone_already_in_use);
-    }
+      const phone = normalizePhone(newPhone);
+      const owner = await this.identifiers.findByTypeValue(
+        IdentifierType.PHONE,
+        phone,
+      );
+      if (owner && owner.userId !== userId) {
+        throw new ConflictException(locals.auth.phone_already_in_use);
+      }
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.CHANGE_PHONE,
-      channel: 'sms',
-      destination: phone,
-    });
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.CHANGE_PHONE,
+        channel: 'sms',
+        destination: phone,
+      });
 
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.PHONE_ADDED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      metadata: { phone, mode: 'change-request' },
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.PHONE_ADDED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+        metadata: { phone, mode: 'change-request' },
+      });
     });
   }
 

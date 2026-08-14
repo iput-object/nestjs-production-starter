@@ -16,7 +16,7 @@ export const AUTH_POLICY = Object.freeze({
   twoFactorChallengeTtlSeconds: 180,
   identifierChangeTtlSeconds: 600,
   /** Timed sudo grant after password / OTP / 2FA elevation. */
-  sudoGrantTtlSeconds: 300,
+  sudoGrantTtlSeconds: 600,
   /** Soft-deleted identifiers become reclaimable after this grace period. */
   identifierReclaimGraceSeconds: 30 * 24 * 3600,
 });

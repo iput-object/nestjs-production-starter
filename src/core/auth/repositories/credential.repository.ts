@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Credential } from '@prisma-client';
 import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
-import { mapPrismaSerializationFailure } from '@/common/utils/prisma-error.util';
+import { mapPrismaSerializationFailure, runSerializable } from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateCredentialInput {
@@ -57,49 +57,50 @@ export class CredentialRepository {
 
   /**
    * Delete an OAuth credential only when another login method remains.
-   * Runs in a serializable transaction so parallel unlinks cannot both pass.
-   * Returns false when the credential is missing or would be the last method.
+   * Serializable + P2034 retries so parallel unlinks cannot both pass.
    */
   async deleteOAuthIfNotLastLogin(
     userId: string,
     credentialId: string,
-  ): Promise<'deleted' | 'missing' | 'last'> {
+  ): Promise<'deleted' | 'missing' | 'last' | 'conflict'> {
     try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          const credential = await tx.credential.findFirst({
-            where: { id: credentialId, userId },
-          });
-          if (!credential) {
-            return 'missing';
-          }
-          if (
-            credential.provider !== 'GOOGLE' &&
-            credential.provider !== 'APPLE'
-          ) {
-            return 'missing';
-          }
+      return await runSerializable(() =>
+        this.prisma.$transaction(
+          async (tx) => {
+            const credential = await tx.credential.findFirst({
+              where: { id: credentialId, userId },
+            });
+            if (!credential) {
+              return 'missing';
+            }
+            if (
+              credential.provider !== 'GOOGLE' &&
+              credential.provider !== 'APPLE'
+            ) {
+              return 'missing';
+            }
 
-          const others = await tx.credential.findMany({
-            where: { userId, id: { not: credentialId } },
-          });
-          const hasPassword = others.some(
-            (row) => row.provider === 'EMAIL' && Boolean(row.passwordHash),
-          );
-          const otherOauth = others.some(
-            (row) => row.provider === 'GOOGLE' || row.provider === 'APPLE',
-          );
-          if (!hasPassword && !otherOauth) {
-            return 'last';
-          }
+            const others = await tx.credential.findMany({
+              where: { userId, id: { not: credentialId } },
+            });
+            const hasPassword = others.some(
+              (row) => row.provider === 'EMAIL' && Boolean(row.passwordHash),
+            );
+            const otherOauth = others.some(
+              (row) => row.provider === 'GOOGLE' || row.provider === 'APPLE',
+            );
+            if (!hasPassword && !otherOauth) {
+              return 'last';
+            }
 
-          await tx.credential.delete({ where: { id: credentialId } });
-          return 'deleted';
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+            await tx.credential.delete({ where: { id: credentialId } });
+            return 'deleted';
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        ),
       );
     } catch (err) {
-      return mapPrismaSerializationFailure(err, 'last');
+      return mapPrismaSerializationFailure(err, 'conflict');
     }
   }
 

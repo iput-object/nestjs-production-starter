@@ -74,33 +74,34 @@ export class TwoFactorService {
 
   // ---------- Email OTP enroll ----------
   async enrollEmailOtp(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
 
-    const destination = await this.verifiedDestination(
-      userId,
-      IdentifierType.EMAIL,
-      locals.auth.no_email_to_enroll,
-    );
+      const destination = await this.verifiedDestination(
+        userId,
+        IdentifierType.EMAIL,
+        locals.auth.no_email_to_enroll,
+      );
 
-    const existing = await this.twoFactor.findByUserAndType(
-      userId,
-      TwoFactorMethodType.EMAIL_OTP,
-    );
-    if (existing?.isEnabled) {
-      throw new ConflictException(locals.auth.email_otp_already_enabled);
-    }
+      const existing = await this.twoFactor.findByUserAndType(
+        userId,
+        TwoFactorMethodType.EMAIL_OTP,
+      );
+      if (existing?.isEnabled) {
+        throw new ConflictException(locals.auth.email_otp_already_enabled);
+      }
 
-    await this.twoFactor.upsert({
-      userId,
-      type: TwoFactorMethodType.EMAIL_OTP,
-      destination,
-    });
+      await this.twoFactor.upsert({
+        userId,
+        type: TwoFactorMethodType.EMAIL_OTP,
+        destination,
+      });
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.ENROLL_2FA,
-      channel: 'email',
-      destination,
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.ENROLL_2FA,
+        channel: 'email',
+        destination,
+      });
     });
   }
 
@@ -133,33 +134,34 @@ export class TwoFactorService {
 
   // ---------- SMS OTP enroll ----------
   async enrollSmsOtp(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
+    await this.sudo.runWithSudo(userId, sessionId, async () => {
 
-    const destination = await this.verifiedDestination(
-      userId,
-      IdentifierType.PHONE,
-      locals.auth.no_phone_to_enroll,
-    );
+      const destination = await this.verifiedDestination(
+        userId,
+        IdentifierType.PHONE,
+        locals.auth.no_phone_to_enroll,
+      );
 
-    const existing = await this.twoFactor.findByUserAndType(
-      userId,
-      TwoFactorMethodType.SMS_OTP,
-    );
-    if (existing?.isEnabled) {
-      throw new ConflictException(locals.auth.sms_otp_already_enabled);
-    }
+      const existing = await this.twoFactor.findByUserAndType(
+        userId,
+        TwoFactorMethodType.SMS_OTP,
+      );
+      if (existing?.isEnabled) {
+        throw new ConflictException(locals.auth.sms_otp_already_enabled);
+      }
 
-    await this.twoFactor.upsert({
-      userId,
-      type: TwoFactorMethodType.SMS_OTP,
-      destination,
-    });
+      await this.twoFactor.upsert({
+        userId,
+        type: TwoFactorMethodType.SMS_OTP,
+        destination,
+      });
 
-    await this.otpSession.issue({
-      userId,
-      purpose: OtpPurpose.ENROLL_2FA,
-      channel: 'sms',
-      destination,
+      await this.otpSession.issue({
+        userId,
+        purpose: OtpPurpose.ENROLL_2FA,
+        channel: 'sms',
+        destination,
+      });
     });
   }
 
@@ -196,24 +198,25 @@ export class TwoFactorService {
     sessionId: string,
     methodId: string,
   ): Promise<void> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const method = await this.twoFactor.findById(methodId);
-    if (!method || method.userId !== userId) {
-      throw new NotFoundException(locals.auth.two_factor_method_not_found);
-    }
-    await this.twoFactor.delete(methodId);
+    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+      const method = await this.twoFactor.findById(methodId);
+      if (!method || method.userId !== userId) {
+        throw new NotFoundException(locals.auth.two_factor_method_not_found);
+      }
+      await this.twoFactor.delete(methodId);
 
-    const remaining = await this.twoFactor.findEnabledForUser(userId);
-    if (remaining.length === 0) {
-      await this.twoFactor.clearBackupCodes(userId);
-    }
-    await this.audit.record({
-      module: AUTH_AUDIT_MODULE,
-      action: AuthAuditAction.TWO_FACTOR_DISABLED,
-      userId,
-      resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
-      resourceId: methodId,
-      metadata: { methodId, type: method.type },
+      const remaining = await this.twoFactor.findEnabledForUser(userId);
+      if (remaining.length === 0) {
+        await this.twoFactor.clearBackupCodes(userId);
+      }
+      await this.audit.record({
+        module: AUTH_AUDIT_MODULE,
+        action: AuthAuditAction.TWO_FACTOR_DISABLED,
+        userId,
+        resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
+        resourceId: methodId,
+        metadata: { methodId, type: method.type },
+      });
     });
   }
 
@@ -222,13 +225,14 @@ export class TwoFactorService {
     userId: string,
     sessionId: string,
   ): Promise<BackupCodesResult> {
-    await this.sudo.consumeSudo(userId, sessionId);
-    const enabled = await this.twoFactor.findEnabledForUser(userId);
-    if (enabled.length === 0) {
-      throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
-    }
-    const codes = await this.replaceBackupCodes(userId);
-    return { codes };
+    return this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+      const enabled = await this.twoFactor.findEnabledForUser(userId);
+      if (enabled.length === 0) {
+        throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
+      }
+      const codes = await this.replaceBackupCodes(userId);
+      return { codes };
+    });
   }
 
   async countBackupCodes(userId: string): Promise<{ remaining: number }> {
@@ -362,18 +366,24 @@ export class TwoFactorService {
       }
     }
 
-    if (!ok) {
-      ok = await this.tryConsumeBackupCode(user.id, code);
+    if (ok) {
+      const claimed = await this.cache.takeTwoFactorChallenge(challengeId);
+      if (!claimed) {
+        throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
+      }
+      await this.twoFactor.touchLastUsed(method.id);
+      return this.tokens.issue(user.id);
     }
 
-    if (!ok) {
+    // Atomic backup claim first so wrong OTP/TOTP codes can retry the challenge.
+    const backupOk = await this.tryConsumeBackupCode(user.id, code);
+    if (!backupOk) {
       throw new UnauthorizedException(locals.auth.invalid_code);
     }
 
-    // Claim the challenge only after the factor succeeds so typos can retry,
-    // while parallel successes still mint at most one session.
     const claimed = await this.cache.takeTwoFactorChallenge(challengeId);
     if (!claimed) {
+      // Backup already spent; parallel verify won the challenge.
       throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
     }
 

@@ -138,6 +138,41 @@ export class SudoService {
     }
   }
 
+  /**
+   * Run a sudo-gated mutation.
+   *
+   * - `consume: false` (default) — GitHub-style timed window; grant stays until
+   *   TTL, logout, or explicit clear.
+   * - `consume: true` — one-shot; grant is taken only after `fn` succeeds so
+   *   validation failures do not burn elevation.
+   */
+  async runWithSudo<T>(
+    userId: string,
+    sessionId: string | undefined,
+    fn: () => Promise<T>,
+    options?: { consume?: boolean },
+  ): Promise<T> {
+    await this.requireSudo(userId, sessionId);
+    const result = await fn();
+    if (options?.consume) {
+      try {
+        await this.consumeSudo(userId, sessionId);
+      } catch {
+        // Mutation already committed; grant may have expired or been taken.
+      }
+    }
+    return result;
+  }
+
+  /** One-shot alias: {@link runWithSudo} with `consume: true`. */
+  runWithSudoOnce<T>(
+    userId: string,
+    sessionId: string | undefined,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return this.runWithSudo(userId, sessionId, fn, { consume: true });
+  }
+
   async status(
     userId: string,
     sessionId: string | undefined,
