@@ -1,4 +1,4 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
@@ -113,28 +113,22 @@ export class PasswordResetService {
 
     const channel = identifier.type === IdentifierType.EMAIL ? 'email' : 'sms';
 
-    try {
-      await this.otpSession.issue({
-        userId: challenge.userId,
-        purpose: OtpPurpose.RESET_PASSWORD,
-        channel,
-        destination: identifier.value,
-      });
-      const remainingTtl = Math.max(
-        1,
-        AUTH_POLICY.passwordResetChallengeTtlSeconds -
-          Math.floor((Date.now() - challenge.createdAt) / 1000),
-      );
-      await this.cache.setPasswordResetChallenge(
-        resetId,
-        { ...challenge, otpChannel: channel },
-        remainingTtl,
-      );
-    } catch (err) {
-      if (err instanceof HttpException) {
-        throw err;
-      }
-    }
+    await this.otpSession.issue({
+      userId: challenge.userId,
+      purpose: OtpPurpose.RESET_PASSWORD,
+      channel,
+      destination: identifier.value,
+    });
+    const remainingTtl = Math.max(
+      1,
+      AUTH_POLICY.passwordResetChallengeTtlSeconds -
+        Math.floor((Date.now() - challenge.createdAt) / 1000),
+    );
+    await this.cache.setPasswordResetChallenge(
+      resetId,
+      { ...challenge, otpChannel: channel },
+      remainingTtl,
+    );
   }
 
   async reset(token: string, newPassword: string): Promise<void> {

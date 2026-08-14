@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { IdentifierType } from '@prisma-client';
@@ -44,6 +46,7 @@ export class SudoService {
     private readonly identifiers: IdentifierRepository,
     private readonly twoFactor: TwoFactorRepository,
     private readonly otpSession: OtpSessionService,
+    @Inject(forwardRef(() => TotpService))
     private readonly totp: TotpService,
     private readonly crypto: CryptoService,
   ) {}
@@ -99,6 +102,9 @@ export class SudoService {
     return methods;
   }
 
+  /**
+   * Assert an active grant without consuming it (used by {@link SudoGuard}).
+   */
   async requireSudo(
     userId: string,
     sessionId: string | undefined,
@@ -111,6 +117,23 @@ export class SudoService {
       if (grant) {
         await this.cache.deleteSudoGrant(userId, sessionId);
       }
+      throw new ForbiddenException(locals.auth.sudo_required);
+    }
+  }
+
+  /**
+   * Atomically consume the sudo grant for a one-shot mutation.
+   * Parallel callers: only one wins; the rest get {@link locals.auth.sudo_required}.
+   */
+  async consumeSudo(
+    userId: string,
+    sessionId: string | undefined,
+  ): Promise<void> {
+    if (!sessionId) {
+      throw new ForbiddenException(locals.auth.sudo_required);
+    }
+    const grant = await this.cache.takeSudoGrant(userId, sessionId);
+    if (!grant || grant.expiresAt <= Date.now()) {
       throw new ForbiddenException(locals.auth.sudo_required);
     }
   }
@@ -219,7 +242,7 @@ export class SudoService {
 
     await this.otpSession.issue({
       userId,
-      purpose: OtpPurpose.SUDO,
+      purpose: OtpPurpose.SUDO_2FA,
       channel: type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms',
       destination: method.destination,
     });
@@ -261,7 +284,7 @@ export class SudoService {
     try {
       await this.otpSession.verifyByCode(
         userId,
-        OtpPurpose.SUDO,
+        OtpPurpose.SUDO_2FA,
         type === TwoFactorMethodType.EMAIL_OTP ? 'email' : 'sms',
         code,
       );

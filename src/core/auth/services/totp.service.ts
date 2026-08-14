@@ -1,8 +1,10 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { generateSecret, generateURI, verifySync } from 'otplib';
@@ -14,6 +16,7 @@ import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import locals from '@/locals';
 
 export interface TotpEnrollmentResult {
@@ -30,9 +33,13 @@ export class TotpService {
     private readonly crypto: CryptoService,
     private readonly twoFactor: TwoFactorRepository,
     private readonly identifiers: IdentifierRepository,
+    @Inject(forwardRef(() => SudoService))
+    private readonly sudo: SudoService,
   ) {}
 
-  async enroll(user: User): Promise<TotpEnrollmentResult> {
+  async enroll(user: User, sessionId: string): Promise<TotpEnrollmentResult> {
+    await this.sudo.consumeSudo(user.id, sessionId);
+
     const existing = await this.twoFactor.findByUserAndType(
       user.id,
       TwoFactorMethodType.TOTP,
@@ -63,6 +70,7 @@ export class TotpService {
       strategy: 'totp',
     });
     const qrDataUrl = await toDataURL(otpauthUrl);
+
 
     return {
       methodId: method.id,

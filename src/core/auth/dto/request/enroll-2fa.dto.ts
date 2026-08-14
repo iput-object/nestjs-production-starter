@@ -1,31 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import {
-  IsEmail,
-  IsOptional,
-  IsPhoneNumber,
-  IsString,
-  Matches,
-  MaxLength,
-} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, Matches } from 'class-validator';
 
-export class EnrollEmailOtpDto {
-  @IsOptional()
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
-  @IsEmail()
-  @MaxLength(320)
-  @ApiPropertyOptional()
-  email?: string;
-}
-
-export class EnrollSmsOtpDto {
-  @IsOptional()
-  @IsPhoneNumber(undefined)
-  @MaxLength(32)
-  @ApiPropertyOptional()
-  phone?: string;
-}
-
+/** Email/SMS 2FA enroll uses a verified identifier already on the account. */
 export class ConfirmEnrollmentDto {
   @IsString()
   @Matches(/^\d{4,10}$/)

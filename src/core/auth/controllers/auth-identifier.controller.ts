@@ -18,6 +18,7 @@ import type { ServiceResponse } from '@/common/core/interceptors/response.interc
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import locals from '@/locals';
 import {
   AddEmailDto,
@@ -62,10 +63,10 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('identifiers/email')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request adding a secondary email' })
+  @ApiOperation({ summary: 'Request adding a secondary email (sudo required)' })
   @ApiOkResponse()
   async addEmail(
     @CurrentUser('sub') userId: string,
@@ -100,10 +101,10 @@ export class AuthIdentifierController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('identifiers/phone')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request adding a phone number' })
+  @ApiOperation({ summary: 'Request adding a phone number (sudo required)' })
   @ApiOkResponse()
   async addPhone(
     @CurrentUser('sub') userId: string,
@@ -127,10 +128,10 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_added };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('identifiers/:id/primary')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Set an identifier as primary' })
+  @ApiOperation({ summary: 'Set an identifier as primary (sudo required)' })
   @ApiOkResponse()
   async setPrimaryIdentifier(
     @CurrentUser('sub') userId: string,
@@ -141,9 +142,9 @@ export class AuthIdentifierController {
     return { message: locals.auth.primary_identifier_updated };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Delete('identifiers/:id')
-  @ApiOperation({ summary: 'Remove a non-primary identifier' })
+  @ApiOperation({ summary: 'Remove a non-primary identifier (sudo required)' })
   @ApiOkResponse()
   async removeIdentifier(
     @CurrentUser('sub') userId: string,
@@ -154,7 +155,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.identifier_removed };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('email/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary email change (sudo required)' })
@@ -206,7 +207,7 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('phone/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary phone change (sudo required)' })
@@ -233,11 +234,13 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_changed };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @AllowUnverified()
   @Post('account/deactivate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Soft-delete (deactivate) the current account' })
+  @ApiOperation({
+    summary: 'Soft-delete (deactivate) the current account (sudo required)',
+  })
   @ApiOkResponse()
   async deactivateAccount(
     @CurrentUser('sub') userId: string,

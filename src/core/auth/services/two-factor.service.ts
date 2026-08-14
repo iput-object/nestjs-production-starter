@@ -10,6 +10,7 @@ import {
   type TwoFactorMethod,
   type User,
   IdentifierType,
+  UserStatus,
 } from '@prisma-client';
 import {
   TwoFactorMethodType,
@@ -72,18 +73,14 @@ export class TwoFactorService {
   }
 
   // ---------- Email OTP enroll ----------
-  async enrollEmailOtp(userId: string, email?: string): Promise<void> {
-    let destination = email;
-    if (!destination) {
-      const primary = await this.identifiers.findPrimary(
-        userId,
-        IdentifierType.EMAIL,
-      );
-      destination = primary?.value;
-    }
-    if (!destination) {
-      throw new BadRequestException(locals.auth.no_email_to_enroll);
-    }
+  async enrollEmailOtp(userId: string, sessionId: string): Promise<void> {
+    await this.sudo.consumeSudo(userId, sessionId);
+
+    const destination = await this.verifiedDestination(
+      userId,
+      IdentifierType.EMAIL,
+      locals.auth.no_email_to_enroll,
+    );
 
     const existing = await this.twoFactor.findByUserAndType(
       userId,
@@ -135,18 +132,14 @@ export class TwoFactorService {
   }
 
   // ---------- SMS OTP enroll ----------
-  async enrollSmsOtp(userId: string, phone?: string): Promise<void> {
-    let destination = phone;
-    if (!destination) {
-      const primary = await this.identifiers.findPrimary(
-        userId,
-        IdentifierType.PHONE,
-      );
-      destination = primary?.value;
-    }
-    if (!destination) {
-      throw new BadRequestException(locals.auth.no_phone_to_enroll);
-    }
+  async enrollSmsOtp(userId: string, sessionId: string): Promise<void> {
+    await this.sudo.consumeSudo(userId, sessionId);
+
+    const destination = await this.verifiedDestination(
+      userId,
+      IdentifierType.PHONE,
+      locals.auth.no_phone_to_enroll,
+    );
 
     const existing = await this.twoFactor.findByUserAndType(
       userId,
@@ -203,7 +196,7 @@ export class TwoFactorService {
     sessionId: string,
     methodId: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const method = await this.twoFactor.findById(methodId);
     if (!method || method.userId !== userId) {
       throw new NotFoundException(locals.auth.two_factor_method_not_found);
@@ -214,7 +207,6 @@ export class TwoFactorService {
     if (remaining.length === 0) {
       await this.twoFactor.clearBackupCodes(userId);
     }
-    await this.sudo.clear(userId, sessionId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.TWO_FACTOR_DISABLED,
@@ -230,12 +222,13 @@ export class TwoFactorService {
     userId: string,
     sessionId: string,
   ): Promise<BackupCodesResult> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const enabled = await this.twoFactor.findEnabledForUser(userId);
     if (enabled.length === 0) {
       throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
     }
-    return { codes: await this.replaceBackupCodes(userId) };
+    const codes = await this.replaceBackupCodes(userId);
+    return { codes };
   }
 
   async countBackupCodes(userId: string): Promise<{ remaining: number }> {
@@ -333,7 +326,7 @@ export class TwoFactorService {
     }
 
     const user = await this.users.findById(record.userId);
-    if (!user) {
+    if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
 
@@ -365,7 +358,7 @@ export class TwoFactorService {
         );
         ok = true;
       } catch {
-        ok = await this.tryConsumeBackupCode(user.id, code);
+        ok = false;
       }
     }
 
@@ -381,6 +374,19 @@ export class TwoFactorService {
     await this.cache.deleteTwoFactorChallenge(challengeId);
 
     return this.tokens.issue(user.id);
+  }
+
+  private async verifiedDestination(
+    userId: string,
+    type: IdentifierType,
+    missingMessage: string,
+  ): Promise<string> {
+    const verified = await this.identifiers.listVerifiedForUser(userId);
+    const match = verified.find((row) => row.type === type);
+    if (!match) {
+      throw new BadRequestException(missingMessage);
+    }
+    return match.value;
   }
 
   private async tryConsumeBackupCode(

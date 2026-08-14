@@ -20,6 +20,18 @@ export class RedisService implements CachePort {
     }
   }
 
+  async take<T>(key: string): Promise<T | null> {
+    try {
+      const client = await this.redisAdapter.getClient();
+      const data = await client.getdel(key);
+      return this.parse<T>(data, key);
+    } catch (error) {
+      const trace = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Redis take failed for key: ${key}`, trace);
+      throw error;
+    }
+  }
+
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     try {
       const client = await this.redisAdapter.getClient();

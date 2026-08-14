@@ -17,6 +17,7 @@ import {
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { BCRYPT_ROUNDS, APPLE_RELAY_DOMAIN } from '@/core/auth/auth.constants';
 import locals from '@/locals';
@@ -28,6 +29,7 @@ export class PasswordChangeService {
     private readonly users: UserRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly tokens: TokenService,
+    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -68,7 +70,13 @@ export class PasswordChangeService {
     });
   }
 
-  async set(userId: string, newPassword: string): Promise<void> {
+  async set(
+    userId: string,
+    sessionId: string,
+    newPassword: string,
+  ): Promise<void> {
+    await this.sudo.consumeSudo(userId, sessionId);
+
     const user = await this.users.findById(userId);
     if (!user) {
       throw new NotFoundException(locals.auth.user_not_found);
@@ -104,6 +112,7 @@ export class PasswordChangeService {
       providerId: primaryEmail.value,
       passwordHash,
     });
+    await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.PASSWORD_SET,

@@ -158,6 +158,16 @@ export class AuthCacheService {
     );
   }
 
+  /** Atomically take the grant (get + delete). Returns null if missing. */
+  takeSudoGrant(
+    userId: string,
+    sessionId: string,
+  ): Promise<SudoGrantRecord | null> {
+    return this.cache.take<SudoGrantRecord>(
+      this.sudoGrantKey(userId, sessionId),
+    );
+  }
+
   async deleteSudoGrant(userId: string, sessionId: string): Promise<void> {
     await this.cache.del(this.sudoGrantKey(userId, sessionId));
   }

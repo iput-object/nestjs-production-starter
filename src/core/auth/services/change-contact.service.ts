@@ -42,7 +42,7 @@ export class ChangeContactService {
     sessionId: string,
     newEmail: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
 
     const email = normalizeEmail(newEmail);
     const owner = await this.identifiers.findByTypeValue(
@@ -106,7 +106,7 @@ export class ChangeContactService {
     sessionId: string,
     newPhone: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
 
     const phone = normalizePhone(newPhone);
     const owner = await this.identifiers.findByTypeValue(

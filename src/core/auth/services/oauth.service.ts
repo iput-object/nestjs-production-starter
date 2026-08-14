@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ import {
   AuthProvider,
   type AuthProviderValue,
 } from '@/core/auth/constants/auth-provider.constants';
+import type { TwoFactorMethodTypeValue } from '@/core/auth/constants/two-factor-method.constants';
 import { Config } from '@/configs/environment.config';
 import { AuditService } from '@/core/audit/services/audit.service';
 import { PrismaService } from '@/database/prisma.service';
@@ -23,8 +25,11 @@ import {
 import { normalizeEmail } from '@/core/auth/helpers/normalize.helper';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
+import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
+import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import locals from '@/locals';
@@ -37,11 +42,13 @@ type VerifiedOAuthIdentity = {
   name: string | null;
 };
 
-export type OAuthLoginResult = {
-  tokens: AuthTokens;
-  user: AuthUser;
-  linked: boolean;
-};
+export type OAuthLoginResult =
+  | { kind: 'tokens'; tokens: AuthTokens; user: AuthUser }
+  | {
+      kind: 'two-factor';
+      challengeId: string;
+      methods: TwoFactorMethodTypeValue[];
+    };
 
 @Injectable()
 export class OAuthService {
@@ -54,7 +61,10 @@ export class OAuthService {
     private readonly users: UserRepository,
     private readonly credentials: CredentialRepository,
     private readonly identifiers: IdentifierRepository,
+    private readonly twoFactorRepo: TwoFactorRepository,
+    private readonly twoFactor: TwoFactorService,
     private readonly tokens: TokenService,
+    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -68,14 +78,32 @@ export class OAuthService {
     return this.loginOrCreate(identity);
   }
 
-  async linkGoogle(userId: string, idToken: string): Promise<void> {
+  async linkGoogle(
+    userId: string,
+    sessionId: string,
+    idToken: string,
+  ): Promise<void> {
     const identity = await this.verifyGoogle(idToken);
+    await this.sudo.consumeSudo(userId, sessionId);
     await this.linkToUser(userId, identity);
   }
 
-  async linkApple(userId: string, idToken: string): Promise<void> {
+  async linkApple(
+    userId: string,
+    sessionId: string,
+    idToken: string,
+  ): Promise<void> {
     const identity = await this.verifyApple(idToken);
+    await this.sudo.consumeSudo(userId, sessionId);
     await this.linkToUser(userId, identity);
+  }
+
+  async unlinkGoogle(userId: string, sessionId: string): Promise<void> {
+    await this.unlinkProvider(userId, sessionId, AuthProvider.GOOGLE);
+  }
+
+  async unlinkApple(userId: string, sessionId: string): Promise<void> {
+    await this.unlinkProvider(userId, sessionId, AuthProvider.APPLE);
   }
 
   private async loginOrCreate(
@@ -97,6 +125,27 @@ export class OAuthService {
           locals.auth.account_no_longer_available,
         );
       }
+
+      const isAccountVerified = await this.identifiers.isAccountVerified(
+        existing.id,
+      );
+      if (isAccountVerified) {
+        const enabledMethods = await this.twoFactorRepo.findEnabledForUser(
+          existing.id,
+        );
+        if (enabledMethods.length > 0) {
+          const challenge = await this.twoFactor.issueChallenge(
+            existing,
+            enabledMethods,
+          );
+          return {
+            kind: 'two-factor',
+            challengeId: challenge.challengeId,
+            methods: challenge.methods,
+          };
+        }
+      }
+
       const tokens = await this.tokens.issue(existing.id);
       await this.audit.record({
         module: AUTH_AUDIT_MODULE,
@@ -106,7 +155,7 @@ export class OAuthService {
         resourceId: existing.id,
         metadata: { provider: identity.provider },
       });
-      return { tokens, user: authUser, linked: false };
+      return { kind: 'tokens', tokens, user: authUser };
     }
 
     if (identity.email) {
@@ -167,7 +216,7 @@ export class OAuthService {
       resourceId: user.id,
       metadata: { provider: identity.provider, created: true },
     });
-    return { tokens, user: authUser, linked: false };
+    return { kind: 'tokens', tokens, user: authUser };
   }
 
   private async linkToUser(
@@ -206,6 +255,46 @@ export class OAuthService {
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: userId,
       metadata: { provider: identity.provider },
+    });
+  }
+
+  private async unlinkProvider(
+    userId: string,
+    sessionId: string,
+    provider: typeof AuthProvider.GOOGLE | typeof AuthProvider.APPLE,
+  ): Promise<void> {
+    const credential = await this.credentials.findByUserAndProvider(
+      userId,
+      provider,
+    );
+    if (!credential) {
+      throw new NotFoundException(locals.auth.oauth_not_linked);
+    }
+
+    const all = await this.credentials.listForUser(userId);
+    const hasPassword = all.some(
+      (row) =>
+        row.provider === AuthProvider.EMAIL && Boolean(row.passwordHash),
+    );
+    const otherOauth = all.some(
+      (row) =>
+        row.id !== credential.id &&
+        (row.provider === AuthProvider.GOOGLE ||
+          row.provider === AuthProvider.APPLE),
+    );
+    if (!hasPassword && !otherOauth) {
+      throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
+    }
+
+    await this.sudo.consumeSudo(userId, sessionId);
+    await this.credentials.delete(credential.id);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.OAUTH_UNLINKED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: userId,
+      metadata: { provider },
     });
   }
 

@@ -24,6 +24,7 @@ import type { ServiceResponse } from '@/common/core/interceptors/response.interc
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
@@ -136,6 +137,12 @@ export class AuthSessionController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.oauth.loginWithGoogle(dto.idToken);
+    if (result.kind === 'two-factor') {
+      return {
+        message: locals.auth.two_factor_required,
+        root: { challengeId: result.challengeId, methods: result.methods },
+      };
+    }
     const body = this.helper.deliverTokens(
       res,
       result.tokens,
@@ -162,6 +169,12 @@ export class AuthSessionController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.oauth.loginWithApple(dto.idToken);
+    if (result.kind === 'two-factor') {
+      return {
+        message: locals.auth.two_factor_required,
+        root: { challengeId: result.challengeId, methods: result.methods },
+      };
+    }
     const body = this.helper.deliverTokens(
       res,
       result.tokens,
@@ -176,30 +189,56 @@ export class AuthSessionController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('oauth/google/link')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Link Google account to the current user' })
+  @ApiOperation({ summary: 'Link Google account (sudo required)' })
   @ApiOkResponse()
   async linkGoogle(
     @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') sessionId: string,
     @Body() dto: LinkGoogleDto,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkGoogle(userId, dto.idToken);
+    await this.oauth.linkGoogle(userId, sessionId, dto.idToken);
     return { message: locals.auth.oauth_linked };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('oauth/apple/link')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Link Apple account to the current user' })
+  @ApiOperation({ summary: 'Link Apple account (sudo required)' })
   @ApiOkResponse()
   async linkApple(
     @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') sessionId: string,
     @Body() dto: LinkAppleDto,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkApple(userId, dto.idToken);
+    await this.oauth.linkApple(userId, sessionId, dto.idToken);
     return { message: locals.auth.oauth_linked };
+  }
+
+  @UseGuards(JwtAuthGuard, SudoGuard)
+  @Delete('oauth/google')
+  @ApiOperation({ summary: 'Unlink Google account (sudo required)' })
+  @ApiOkResponse()
+  async unlinkGoogle(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') sessionId: string,
+  ): Promise<ServiceResponse<void>> {
+    await this.oauth.unlinkGoogle(userId, sessionId);
+    return { message: locals.auth.oauth_unlinked };
+  }
+
+  @UseGuards(JwtAuthGuard, SudoGuard)
+  @Delete('oauth/apple')
+  @ApiOperation({ summary: 'Unlink Apple account (sudo required)' })
+  @ApiOkResponse()
+  async unlinkApple(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') sessionId: string,
+  ): Promise<ServiceResponse<void>> {
+    await this.oauth.unlinkApple(userId, sessionId);
+    return { message: locals.auth.oauth_unlinked };
   }
 
   @Post('refresh')

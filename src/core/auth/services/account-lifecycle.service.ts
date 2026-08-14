@@ -28,7 +28,7 @@ export class AccountLifecycleService {
   ) {}
 
   async deactivate(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const user = await this.users.findById(userId);
     if (!user) {
       throw new NotFoundException(locals.auth.user_not_found);

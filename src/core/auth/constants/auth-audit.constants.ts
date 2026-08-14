@@ -24,6 +24,7 @@ export const AuthAuditAction = Object.freeze({
   TWO_FACTOR_DISABLED: '2fa.disabled',
   OAUTH_LOGIN: 'oauth.login',
   OAUTH_LINKED: 'oauth.linked',
+  OAUTH_UNLINKED: 'oauth.unlinked',
   ACCOUNT_DEACTIVATED: 'account.deactivated',
 } as const);
 

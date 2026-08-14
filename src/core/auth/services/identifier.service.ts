@@ -44,7 +44,7 @@ export class IdentifierService {
     sessionId: string,
     email: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const value = normalizeEmail(email);
     await this.assertAvailable(IdentifierType.EMAIL, value);
 
@@ -95,7 +95,7 @@ export class IdentifierService {
     sessionId: string,
     phone: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const value = normalizePhone(phone);
     await this.assertAvailable(IdentifierType.PHONE, value);
 
@@ -126,7 +126,7 @@ export class IdentifierService {
     sessionId: string,
     identifierId: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const identifier = await this.identifiers.findById(identifierId);
     if (!identifier || identifier.userId !== userId) {
       throw new NotFoundException(locals.auth.identifier_not_found);
@@ -160,7 +160,7 @@ export class IdentifierService {
     sessionId: string,
     identifierId: string,
   ): Promise<void> {
-    await this.sudo.requireSudo(userId, sessionId);
+    await this.sudo.consumeSudo(userId, sessionId);
     const identifier = await this.identifiers.findById(identifierId);
     if (!identifier || identifier.userId !== userId) {
       throw new NotFoundException(locals.auth.identifier_not_found);

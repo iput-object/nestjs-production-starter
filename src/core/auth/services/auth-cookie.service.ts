@@ -30,14 +30,6 @@ export class AuthCookieService {
     });
   }
 
-  /** Overwrite only the access cookie (e.g. sudo elevation). */
-  setAccessCookie(res: Response, token: string, expiresAt: Date): void {
-    res.cookie(ACCESS_TOKEN_COOKIE, token, {
-      ...this.baseOptions(),
-      expires: expiresAt,
-    });
-  }
-
   clearAuthCookies(res: Response): void {
     res.clearCookie(ACCESS_TOKEN_COOKIE, this.baseOptions());
     res.clearCookie(REFRESH_TOKEN_COOKIE, {

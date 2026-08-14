@@ -19,15 +19,12 @@ import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
+import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
 } from '@/core/auth/helpers/auth-controller.helper';
 import locals from '@/locals';
-import {
-  EnrollEmailOtpDto,
-  EnrollSmsOtpDto,
-} from '@/core/auth/dto/request/enroll-2fa.dto';
 import { ConfirmEmailOtpDto } from '@/core/auth/dto/request/confirm-email-otp.dto';
 import { ConfirmSmsOtpDto } from '@/core/auth/dto/request/confirm-sms-otp.dto';
 import { ConfirmTotpDto } from '@/core/auth/dto/request/confirm-totp.dto';
@@ -69,15 +66,20 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('2fa/enroll/totp')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
+  @ApiOperation({
+    summary: 'Begin TOTP authenticator enrollment (sudo required)',
+  })
   @ApiOkResponse({ type: EnrollTotpResponseDto })
-  async enrollTotp(@CurrentUser('sub') userId: string) {
+  async enrollTotp(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') sessionId: string,
+  ) {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    const enrollment = await this.totp.enroll(user);
+    const enrollment = await this.totp.enroll(user, sessionId);
     return plainToInstance(EnrollTotpResponseDto, enrollment, {
       excludeExtraneousValues: true,
     });
@@ -105,18 +107,21 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('2fa/enroll/email/request')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Begin email OTP two-factor enrollment' })
+  @ApiOperation({
+    summary:
+      'Begin email OTP two-factor enrollment on a verified account email (sudo required)',
+  })
   @ApiOkResponse()
   async enrollEmailOtp(
     @CurrentUser('sub') userId: string,
-    @Body() dto: EnrollEmailOtpDto,
+    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    await this.twoFactor.enrollEmailOtp(userId, dto.email);
+    await this.twoFactor.enrollEmailOtp(userId, sessionId);
     return { message: locals.auth.two_factor_code_sent };
   }
 
@@ -142,18 +147,21 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('2fa/enroll/sms/request')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Begin SMS OTP two-factor enrollment' })
+  @ApiOperation({
+    summary:
+      'Begin SMS OTP two-factor enrollment on a verified account phone (sudo required)',
+  })
   @ApiOkResponse()
   async enrollSmsOtp(
     @CurrentUser('sub') userId: string,
-    @Body() dto: EnrollSmsOtpDto,
+    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    await this.twoFactor.enrollSmsOtp(userId, dto.phone);
+    await this.twoFactor.enrollSmsOtp(userId, sessionId);
     return { message: locals.auth.two_factor_code_sent };
   }
 
@@ -179,7 +187,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Delete('2fa/methods/:methodId')
   @ApiOperation({ summary: 'Disable a two-factor method (sudo required)' })
   @ApiOkResponse()
@@ -203,7 +211,7 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SudoGuard)
   @Post('2fa/backup-codes/regenerate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate backup codes (sudo required)' })

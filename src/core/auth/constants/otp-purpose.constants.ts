@@ -15,6 +15,8 @@ export const OtpPurpose = {
   ADD_PHONE: 'add-phone',
   CHANGE_PHONE: 'change-phone',
   SUDO: 'sudo',
+  /** Elevating via an enrolled email/SMS 2FA method (separate slot from primary OTP). */
+  SUDO_2FA: 'sudo-2fa',
 } as const;
 
 export type OtpPurpose = (typeof OtpPurpose)[keyof typeof OtpPurpose];
@@ -97,6 +99,14 @@ export const OTP_PURPOSE_REGISTRY: Readonly<
     ttlSeconds: AUTH_POLICY.identifierChangeTtlSeconds,
   },
   [OtpPurpose.SUDO]: {
+    mailType: AuthMailType.SUDO,
+    channels: {
+      email: [TokenType.CODE],
+      sms: [TokenType.CODE],
+    },
+    ttlSeconds: OTP_POLICY.sudoOtpTtlSeconds,
+  },
+  [OtpPurpose.SUDO_2FA]: {
     mailType: AuthMailType.SUDO,
     channels: {
       email: [TokenType.CODE],
