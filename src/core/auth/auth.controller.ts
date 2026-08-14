@@ -170,10 +170,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.register.register(
-      dto,
-      this.helper.requestContext(req),
-    );
+    const result = await this.register.register(dto);
     const body = this.helper.deliverTokens(
       res,
       result.tokens,
@@ -199,7 +196,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.login.login(dto, this.helper.requestContext(req));
+    const result = await this.login.login(dto);
     if (result.kind === 'tokens') {
       const body = this.helper.deliverTokens(
         res,
@@ -231,10 +228,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.oauth.loginWithGoogle(
-      dto.idToken,
-      this.helper.requestContext(req),
-    );
+    const result = await this.oauth.loginWithGoogle(dto.idToken);
     const body = this.helper.deliverTokens(
       res,
       result.tokens,
@@ -260,10 +254,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.oauth.loginWithApple(
-      dto.idToken,
-      this.helper.requestContext(req),
-    );
+    const result = await this.oauth.loginWithApple(dto.idToken);
     const body = this.helper.deliverTokens(
       res,
       result.tokens,
@@ -286,13 +277,8 @@ export class AuthController {
   async linkGoogle(
     @CurrentUser('sub') userId: string,
     @Body() dto: LinkGoogleDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkGoogle(
-      userId,
-      dto.idToken,
-      this.helper.requestContext(req),
-    );
+    await this.oauth.linkGoogle(userId, dto.idToken);
     return { message: locals.auth.oauth_linked };
   }
 
@@ -304,13 +290,8 @@ export class AuthController {
   async linkApple(
     @CurrentUser('sub') userId: string,
     @Body() dto: LinkAppleDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkApple(
-      userId,
-      dto.idToken,
-      this.helper.requestContext(req),
-    );
+    await this.oauth.linkApple(userId, dto.idToken);
     return { message: locals.auth.oauth_linked };
   }
 
@@ -329,10 +310,7 @@ export class AuthController {
     if (!presentedRefreshToken) {
       throw new UnauthorizedException(locals.auth.refresh_token_required);
     }
-    const tokens = await this.tokens.refresh(
-      presentedRefreshToken,
-      this.helper.requestContext(req),
-    );
+    const tokens = await this.tokens.refresh(presentedRefreshToken);
     const body = this.helper.deliverTokens(res, tokens, fromBody);
     return {
       message: locals.auth.token_refreshed,
@@ -386,7 +364,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ServiceResponse<void>> {
-    await this.sessions.revokeAll(userId, this.helper.requestContext(req));
+    await this.sessions.revokeAll(userId);
     this.cookies.clearAuthCookies(res);
     return { message: locals.auth.logged_out_all_successfully };
   }
@@ -415,13 +393,8 @@ export class AuthController {
   async revokeSession(
     @CurrentUser('sub') userId: string,
     @Param('sessionId') sessionId: string,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.sessions.revokeOne(
-      userId,
-      sessionId,
-      this.helper.requestContext(req),
-    );
+    await this.sessions.revokeOne(userId, sessionId);
     return { message: locals.auth.session_revoked };
   }
 
@@ -640,13 +613,11 @@ export class AuthController {
   async changePassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: ChangePasswordDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
     await this.passwordChange.change(
       userId,
       dto.currentPassword,
       dto.newPassword,
-      this.helper.requestContext(req),
     );
     return { message: locals.auth.password_changed };
   }
@@ -659,13 +630,8 @@ export class AuthController {
   async setPassword(
     @CurrentUser('sub') userId: string,
     @Body() dto: SetPasswordDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.passwordChange.set(
-      userId,
-      dto.password,
-      this.helper.requestContext(req),
-    );
+    await this.passwordChange.set(userId, dto.password);
     return { message: locals.auth.password_set };
   }
 
@@ -691,13 +657,11 @@ export class AuthController {
   async addEmail(
     @CurrentUser('sub') userId: string,
     @Body() dto: AddEmailDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
     await this.identifiers.requestAddEmail(
       userId,
       dto.email,
       dto.currentPassword,
-      this.helper.requestContext(req),
     );
     return { message: locals.auth.email_change_requested };
   }
@@ -734,13 +698,11 @@ export class AuthController {
   async addPhone(
     @CurrentUser('sub') userId: string,
     @Body() dto: AddPhoneDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
     await this.identifiers.requestAddPhone(
       userId,
       dto.phone,
       dto.currentPassword,
-      this.helper.requestContext(req),
     );
     return { message: locals.auth.phone_change_requested };
   }
@@ -767,14 +729,8 @@ export class AuthController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() dto: SetPrimaryIdentifierDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.setPrimary(
-      userId,
-      id,
-      dto.currentPassword,
-      this.helper.requestContext(req),
-    );
+    await this.identifiers.setPrimary(userId, id, dto.currentPassword);
     return { message: locals.auth.primary_identifier_updated };
   }
 
@@ -786,14 +742,8 @@ export class AuthController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() dto: RemoveIdentifierDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.remove(
-      userId,
-      id,
-      dto.currentPassword,
-      this.helper.requestContext(req),
-    );
+    await this.identifiers.remove(userId, id, dto.currentPassword);
     return { message: locals.auth.identifier_removed };
   }
 
@@ -805,13 +755,11 @@ export class AuthController {
   async requestEmailChange(
     @CurrentUser('sub') userId: string,
     @Body() dto: RequestEmailChangeDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
     await this.changeContact.requestEmailChange(
       userId,
       dto.email,
       dto.currentPassword,
-      this.helper.requestContext(req),
     );
     return { message: locals.auth.email_change_requested };
   }
@@ -862,13 +810,11 @@ export class AuthController {
   async requestPhoneChange(
     @CurrentUser('sub') userId: string,
     @Body() dto: RequestPhoneChangeDto,
-    @Req() req: Request,
   ): Promise<ServiceResponse<void>> {
     await this.changeContact.requestPhoneChange(
       userId,
       dto.phone,
       dto.currentPassword,
-      this.helper.requestContext(req),
     );
     return { message: locals.auth.phone_change_requested };
   }
@@ -898,11 +844,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ServiceResponse<void>> {
-    await this.accountLifecycle.deactivate(
-      userId,
-      dto.currentPassword,
-      this.helper.requestContext(req),
-    );
+    await this.accountLifecycle.deactivate(userId, dto.currentPassword);
     this.cookies.clearAuthCookies(res);
     return { message: locals.auth.account_deactivated };
   }
@@ -1099,7 +1041,6 @@ export class AuthController {
       dto.challengeId,
       dto.type,
       dto.code,
-      this.helper.requestContext(req),
     );
     const body = this.helper.deliverTokens(
       res,

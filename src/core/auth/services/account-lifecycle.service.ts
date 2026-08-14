@@ -15,7 +15,6 @@ import { IdentifierRepository } from '@/core/auth/repositories/identifier.reposi
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TokenService } from '@/core/auth/services/token.service';
-import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 @Injectable()
@@ -28,11 +27,7 @@ export class AccountLifecycleService {
     private readonly audit: AuditService,
   ) {}
 
-  async deactivate(
-    userId: string,
-    currentPassword: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async deactivate(userId: string, currentPassword: string): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
     const user = await this.users.findById(userId);
     if (!user) {
@@ -47,7 +42,6 @@ export class AccountLifecycleService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: userId,
-      context,
     });
   }
 

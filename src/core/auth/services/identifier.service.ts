@@ -24,7 +24,6 @@ import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
-import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 @Injectable()
@@ -46,7 +45,6 @@ export class IdentifierService {
     userId: string,
     email: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
     const value = normalizeEmail(email);
@@ -67,7 +65,6 @@ export class IdentifierService {
       action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      context,
       metadata: { email: value, mode: 'add' },
     });
   }
@@ -103,7 +100,6 @@ export class IdentifierService {
     userId: string,
     phone: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
     const value = normalizePhone(phone);
@@ -137,7 +133,6 @@ export class IdentifierService {
     userId: string,
     identifierId: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
     const identifier = await this.identifiers.findById(identifierId);
@@ -160,7 +155,6 @@ export class IdentifierService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
       resourceId: identifierId,
-      context,
       metadata: {
         identifierId,
         type: identifier.type,
@@ -173,7 +167,6 @@ export class IdentifierService {
     userId: string,
     identifierId: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
     const identifier = await this.identifiers.findById(identifierId);
@@ -200,7 +193,6 @@ export class IdentifierService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
       resourceId: identifierId,
-      context,
       metadata: {
         identifierId,
         type: identifier.type,

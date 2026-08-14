@@ -1,12 +1,6 @@
 import type { AuditOutcome, Prisma } from '@prisma-client';
 import type { Pagination } from '@/common/pagination/pagination.types';
 
-export interface AuditContext {
-  ip?: string;
-  userAgent?: string;
-  requestId?: string;
-}
-
 export interface RecordAuditInput {
   module: string;
   action: string;
@@ -14,7 +8,6 @@ export interface RecordAuditInput {
   userId?: string | null;
   resourceType?: string;
   resourceId?: string;
-  context?: AuditContext;
   metadata?: Prisma.InputJsonValue;
 }
 

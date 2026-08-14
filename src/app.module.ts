@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ContextModule } from '@/infrastructure/context/context.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import configuration, { Config } from '@/configs/environment.config';
@@ -19,6 +20,7 @@ import { StorageModule } from '@/infrastructure/storage/storage.module';
       isGlobal: true,
       load: [configuration],
     }),
+    ContextModule,
     ObservabilityModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],

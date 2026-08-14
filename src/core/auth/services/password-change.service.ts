@@ -18,7 +18,6 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { TokenService } from '@/core/auth/services/token.service';
-import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import { BCRYPT_ROUNDS, APPLE_RELAY_DOMAIN } from '@/core/auth/auth.constants';
 import locals from '@/locals';
 
@@ -36,7 +35,6 @@ export class PasswordChangeService {
     userId: string,
     currentPassword: string,
     newPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     const credential = await this.credentials.findByUserAndProvider(
       userId,
@@ -67,15 +65,10 @@ export class PasswordChangeService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: userId,
-      context,
     });
   }
 
-  async set(
-    userId: string,
-    newPassword: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async set(userId: string, newPassword: string): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user) {
       throw new NotFoundException(locals.auth.user_not_found);
@@ -117,7 +110,6 @@ export class PasswordChangeService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: userId,
-      context,
     });
   }
 }

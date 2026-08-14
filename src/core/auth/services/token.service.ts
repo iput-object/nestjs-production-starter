@@ -9,10 +9,7 @@ import { SessionRepository } from '@/core/auth/repositories/session.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repository';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
-import type {
-  AuthTokens,
-  RequestContext,
-} from '@/core/auth/types/auth-tokens.type';
+import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { SECONDS_IN_DAY } from '@/core/auth/auth.constants';
 import locals from '@/locals';
 
@@ -28,10 +25,7 @@ export class TokenService {
     private readonly fcmTokens: FcmTokenRepository,
   ) {}
 
-  async issue(
-    userId: string,
-    context: RequestContext = {},
-  ): Promise<AuthTokens> {
+  async issue(userId: string): Promise<AuthTokens> {
     const auth = this.config.get<Config['auth']>('auth')!;
 
     const accessToken = await this.signAccessToken(userId);
@@ -50,10 +44,8 @@ export class TokenService {
       userId,
       refreshTokenHash,
       expiresAt: refreshExpiresAt,
-      ipAddress: context.ip ?? null,
-      userAgent: context.userAgent ?? null,
-      deviceId: context.deviceId ?? null,
-      deviceLabel: context.deviceLabel ?? null,
+      deviceId: null,
+      deviceLabel: null,
     });
 
     await this.cache.setSessionMirror(
@@ -68,10 +60,7 @@ export class TokenService {
     };
   }
 
-  async refresh(
-    presentedRefreshToken: string,
-    context: RequestContext = {},
-  ): Promise<AuthTokens> {
+  async refresh(presentedRefreshToken: string): Promise<AuthTokens> {
     const auth = this.config.get<Config['auth']>('auth')!;
     let payload: JwtPayload;
     try {
@@ -91,13 +80,12 @@ export class TokenService {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
 
-    return this.rotate(payload.sub, presentedRefreshToken, context);
+    return this.rotate(payload.sub, presentedRefreshToken);
   }
 
   async rotate(
     userId: string,
     presentedRefreshToken: string,
-    context: RequestContext = {},
   ): Promise<AuthTokens> {
     const presentedHash = this.crypto.hashSha256(presentedRefreshToken);
     const session = await this.sessions.findActiveByHash(presentedHash);
@@ -111,7 +99,7 @@ export class TokenService {
     await this.sessions.revokeByHash(presentedHash);
     await this.cache.deleteSessionMirror(presentedHash);
 
-    return this.issue(userId, context);
+    return this.issue(userId);
   }
 
   async revoke(refreshToken: string): Promise<void> {

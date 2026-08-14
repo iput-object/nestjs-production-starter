@@ -52,11 +52,4 @@ export class AuthControllerHelper {
     const value = req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
     return typeof value === 'string' ? value : undefined;
   }
-
-  public requestContext(req: Request): { ip?: string; userAgent?: string } {
-    return {
-      ip: req.ip,
-      userAgent: req.get('user-agent') ?? undefined,
-    };
-  }
 }

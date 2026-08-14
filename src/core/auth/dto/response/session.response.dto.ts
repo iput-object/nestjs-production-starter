@@ -9,14 +9,6 @@ export class SessionResponseDto {
 
   @Expose()
   @ApiProperty({ nullable: true })
-  ipAddress!: string | null;
-
-  @Expose()
-  @ApiProperty({ nullable: true })
-  userAgent!: string | null;
-
-  @Expose()
-  @ApiProperty({ nullable: true })
   deviceId!: string | null;
 
   @Expose()

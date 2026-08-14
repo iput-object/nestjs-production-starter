@@ -13,13 +13,11 @@ import {
 import { AuditService } from '@/core/audit/services/audit.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { SessionRepository } from '@/core/auth/repositories/session.repository';
-import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 export interface SessionView {
   id: string;
-  ipAddress: string | null;
-  userAgent: string | null;
+
   deviceId: string | null;
   deviceLabel: string | null;
   createdAt: Date;
@@ -48,8 +46,7 @@ export class SessionService {
 
     return rows.map((s) => ({
       id: s.id,
-      ipAddress: s.ipAddress,
-      userAgent: s.userAgent,
+
       deviceId: s.deviceId,
       deviceLabel: s.deviceLabel,
       createdAt: s.createdAt,
@@ -58,11 +55,7 @@ export class SessionService {
     }));
   }
 
-  async revokeOne(
-    userId: string,
-    sessionId: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async revokeOne(userId: string, sessionId: string): Promise<void> {
     const session = await this.sessions.findActiveById(sessionId);
     if (!session || session.userId !== userId) {
       throw new NotFoundException(locals.auth.session_not_found);
@@ -75,19 +68,17 @@ export class SessionService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.SESSION,
       resourceId: sessionId,
-      context,
       metadata: { sessionId },
     });
   }
 
-  async revokeAll(userId: string, context: RequestContext = {}): Promise<void> {
+  async revokeAll(userId: string): Promise<void> {
     await this.tokens.revokeAllForUser(userId);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.SESSION_REVOKED_ALL,
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.SESSION,
-      context,
     });
   }
 

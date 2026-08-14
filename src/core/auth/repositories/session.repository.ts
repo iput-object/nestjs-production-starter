@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClsService } from 'nestjs-cls';
 import type { Session } from '@prisma-client';
 import { PrismaService } from '@/database/prisma.service';
 
@@ -6,18 +7,25 @@ export interface CreateSessionInput {
   userId: string;
   refreshTokenHash: string;
   expiresAt: Date;
-  ipAddress?: string | null;
-  userAgent?: string | null;
   deviceId?: string | null;
   deviceLabel?: string | null;
 }
 
 @Injectable()
 export class SessionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cls: ClsService,
+  ) {}
 
   create(input: CreateSessionInput): Promise<Session> {
-    return this.prisma.session.create({ data: input });
+    return this.prisma.session.create({
+      data: {
+        ...input,
+        ipAddress: this.cls.get('ip') ?? null,
+        userAgent: this.cls.get('userAgent') ?? null,
+      },
+    });
   }
 
   findActiveByHash(refreshTokenHash: string): Promise<Session | null> {

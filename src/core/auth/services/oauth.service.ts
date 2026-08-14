@@ -25,10 +25,7 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { TokenService } from '@/core/auth/services/token.service';
-import type {
-  AuthTokens,
-  RequestContext,
-} from '@/core/auth/types/auth-tokens.type';
+import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import locals from '@/locals';
 
@@ -61,43 +58,28 @@ export class OAuthService {
     private readonly audit: AuditService,
   ) {}
 
-  async loginWithGoogle(
-    idToken: string,
-    context: RequestContext = {},
-  ): Promise<OAuthLoginResult> {
+  async loginWithGoogle(idToken: string): Promise<OAuthLoginResult> {
     const identity = await this.verifyGoogle(idToken);
-    return this.loginOrCreate(identity, context);
+    return this.loginOrCreate(identity);
   }
 
-  async loginWithApple(
-    idToken: string,
-    context: RequestContext = {},
-  ): Promise<OAuthLoginResult> {
+  async loginWithApple(idToken: string): Promise<OAuthLoginResult> {
     const identity = await this.verifyApple(idToken);
-    return this.loginOrCreate(identity, context);
+    return this.loginOrCreate(identity);
   }
 
-  async linkGoogle(
-    userId: string,
-    idToken: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async linkGoogle(userId: string, idToken: string): Promise<void> {
     const identity = await this.verifyGoogle(idToken);
-    await this.linkToUser(userId, identity, context);
+    await this.linkToUser(userId, identity);
   }
 
-  async linkApple(
-    userId: string,
-    idToken: string,
-    context: RequestContext = {},
-  ): Promise<void> {
+  async linkApple(userId: string, idToken: string): Promise<void> {
     const identity = await this.verifyApple(idToken);
-    await this.linkToUser(userId, identity, context);
+    await this.linkToUser(userId, identity);
   }
 
   private async loginOrCreate(
     identity: VerifiedOAuthIdentity,
-    context: RequestContext,
   ): Promise<OAuthLoginResult> {
     const existing = await this.users.findByProviderIdentity(
       identity.provider,
@@ -115,14 +97,13 @@ export class OAuthService {
           locals.auth.account_no_longer_available,
         );
       }
-      const tokens = await this.tokens.issue(existing.id, context);
+      const tokens = await this.tokens.issue(existing.id);
       await this.audit.record({
         module: AUTH_AUDIT_MODULE,
         action: AuthAuditAction.OAUTH_LOGIN,
         userId: existing.id,
         resourceType: AUTH_AUDIT_RESOURCE.USER,
         resourceId: existing.id,
-        context,
         metadata: { provider: identity.provider },
       });
       return { tokens, user: authUser, linked: false };
@@ -177,14 +158,13 @@ export class OAuthService {
     if (!authUser) {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
-    const tokens = await this.tokens.issue(user.id, context);
+    const tokens = await this.tokens.issue(user.id);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.OAUTH_LOGIN,
       userId: user.id,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: user.id,
-      context,
       metadata: { provider: identity.provider, created: true },
     });
     return { tokens, user: authUser, linked: false };
@@ -193,7 +173,6 @@ export class OAuthService {
   private async linkToUser(
     userId: string,
     identity: VerifiedOAuthIdentity,
-    context: RequestContext,
   ): Promise<void> {
     const existing = await this.credentials.findByProviderIdentity(
       identity.provider,
@@ -226,7 +205,6 @@ export class OAuthService {
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: userId,
-      context,
       metadata: { provider: identity.provider },
     });
   }

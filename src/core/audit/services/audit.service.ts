@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ClsService } from 'nestjs-cls';
 import type { Activity } from '@prisma-client';
 import { Queue } from 'bullmq';
 import { AUDIT_PIPELINE } from '@/core/audit/constants/audit.constants';
@@ -30,6 +31,7 @@ export class AuditService implements OnModuleInit {
     private readonly buffer: AuditBufferService,
     @InjectQueue(AUDIT_QUEUE)
     private readonly queue: Queue<AuditFlushJobData | AuditBulkJobData>,
+    private readonly cls: ClsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -108,7 +110,6 @@ export class AuditService implements OnModuleInit {
   }
 
   private toRow(input: RecordAuditInput): AuditActivityRow {
-    const ctx = input.context ?? {};
     return {
       module: input.module,
       action: input.action,
@@ -116,9 +117,9 @@ export class AuditService implements OnModuleInit {
       userId: input.userId ?? null,
       resourceType: input.resourceType ?? null,
       resourceId: input.resourceId ?? null,
-      ipAddress: ctx.ip ?? null,
-      userAgent: ctx.userAgent ?? null,
-      requestId: ctx.requestId ?? null,
+      ipAddress: this.cls.get('ip') ?? null,
+      userAgent: this.cls.get('userAgent') ?? null,
+      requestId: null,
       metadata: input.metadata,
       createdAt: new Date().toISOString(),
     };

@@ -26,7 +26,6 @@ import { OtpSessionService } from '@/core/auth/services/otp-session.service';
 import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { AuthMailType } from '@/core/auth/transporters/auth-otp.transporter';
-import type { RequestContext } from '@/core/auth/types/auth-tokens.type';
 import locals from '@/locals';
 
 @Injectable()
@@ -45,7 +44,6 @@ export class ChangeContactService {
     userId: string,
     newEmail: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
 
@@ -82,7 +80,6 @@ export class ChangeContactService {
       action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      context,
       metadata: { email },
     });
   }
@@ -115,7 +112,6 @@ export class ChangeContactService {
     userId: string,
     newPhone: string,
     currentPassword: string,
-    context: RequestContext = {},
   ): Promise<void> {
     await this.stepUp.requirePassword(userId, currentPassword);
 
@@ -143,7 +139,6 @@ export class ChangeContactService {
       action: AuthAuditAction.PHONE_ADDED,
       userId,
       resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-      context,
       metadata: { phone, mode: 'change-request' },
     });
   }

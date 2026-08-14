@@ -28,10 +28,7 @@ import { IdentifierRepository } from '@/core/auth/repositories/identifier.reposi
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import type { LoginDto } from '@/core/auth/dto/request/login.dto';
-import type {
-  AuthTokens,
-  RequestContext,
-} from '@/core/auth/types/auth-tokens.type';
+import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import locals from '@/locals';
 
@@ -62,7 +59,7 @@ export class LoginService {
     private readonly audit: AuditService,
   ) {}
 
-  async login(dto: LoginDto, context: RequestContext): Promise<LoginResult> {
+  async login(dto: LoginDto): Promise<LoginResult> {
     const resolved = dto.email
       ? { type: IdentifierType.EMAIL, value: normalizeEmail(dto.email) }
       : { type: IdentifierType.PHONE, value: normalizePhone(dto.phone ?? '') };
@@ -74,7 +71,6 @@ export class LoginService {
         module: AUTH_AUDIT_MODULE,
         action: AuthAuditAction.LOGIN_LOCKOUT,
         outcome: 'FAILURE',
-        context,
         metadata: { identityHash },
       });
       throw new HttpException(
@@ -88,13 +84,13 @@ export class LoginService {
       resolved.value,
     );
     if (!owner) {
-      await this.recordFail(identityHash, fails, context);
+      await this.recordFail(identityHash, fails);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
     const { user } = owner;
 
     if (user.status !== UserStatus.ACTIVE) {
-      await this.recordFail(identityHash, fails, context, user.id);
+      await this.recordFail(identityHash, fails, user.id);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
@@ -103,13 +99,13 @@ export class LoginService {
       AuthProvider.EMAIL,
     );
     if (!credential || !credential.passwordHash) {
-      await this.recordFail(identityHash, fails, context, user.id);
+      await this.recordFail(identityHash, fails, user.id);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
     const matches = await bcrypt.compare(dto.password, credential.passwordHash);
     if (!matches) {
-      await this.recordFail(identityHash, fails, context, user.id);
+      await this.recordFail(identityHash, fails, user.id);
       throw new UnauthorizedException(locals.auth.invalid_credentials);
     }
 
@@ -128,7 +124,6 @@ export class LoginService {
         const challenge = await this.twoFactor.issueChallenge(
           user,
           enabledMethods,
-          context,
         );
         return {
           kind: 'two-factor',
@@ -142,14 +137,13 @@ export class LoginService {
     if (!authUser) {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
-    const tokens = await this.tokens.issue(user.id, context);
+    const tokens = await this.tokens.issue(user.id);
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
       action: AuthAuditAction.LOGIN_SUCCESS,
       userId: user.id,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: user.id,
-      context,
       metadata: { isAccountVerified },
     });
     return { kind: 'tokens', tokens, user: authUser };
@@ -158,7 +152,6 @@ export class LoginService {
   private async recordFail(
     identityHash: string,
     current: number,
-    context: RequestContext,
     userId?: string,
   ): Promise<void> {
     await this.cache.setLoginFails(
@@ -173,7 +166,6 @@ export class LoginService {
       userId: userId ?? null,
       resourceType: userId ? AUTH_AUDIT_RESOURCE.USER : undefined,
       resourceId: userId,
-      context,
       metadata: { identityHash },
     });
   }

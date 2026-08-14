@@ -24,10 +24,7 @@ import {
 } from '@/core/auth/constants/auth-audit.constants';
 import { AuditService } from '@/core/audit/services/audit.service';
 import type { RegisterDto } from '@/core/auth/dto/request/register.dto';
-import type {
-  AuthTokens,
-  RequestContext,
-} from '@/core/auth/types/auth-tokens.type';
+import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import type { AuthUser } from '@/core/auth/types/auth-user.type';
 import { BCRYPT_ROUNDS } from '@/core/auth/auth.constants';
 import locals from '@/locals';
@@ -53,10 +50,7 @@ export class RegisterService {
     private readonly audit: AuditService,
   ) {}
 
-  async register(
-    dto: RegisterDto,
-    context: RequestContext = {},
-  ): Promise<RegisterResult> {
+  async register(dto: RegisterDto): Promise<RegisterResult> {
     const email = dto.email ? normalizeEmail(dto.email) : undefined;
     const phone = dto.phone ? normalizePhone(dto.phone) : undefined;
     const providerId = email ?? phone;
@@ -135,7 +129,7 @@ export class RegisterService {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
     }
 
-    const tokens = await this.tokens.issue(user.id, context);
+    const tokens = await this.tokens.issue(user.id);
 
     await this.audit.record({
       module: AUTH_AUDIT_MODULE,
@@ -143,7 +137,6 @@ export class RegisterService {
       userId: user.id,
       resourceType: AUTH_AUDIT_RESOURCE.USER,
       resourceId: user.id,
-      context,
       metadata: { email, phone, isAccountVerified: false },
     });
 

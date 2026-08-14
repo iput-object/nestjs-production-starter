@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { Prisma } from '@prisma-client';
 import { Pagination, PaginatedResult } from './pagination.types';
 import { cursorPaginationMeta, offsetPaginationMeta } from './pagination.meta';

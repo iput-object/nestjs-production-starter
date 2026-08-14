@@ -33,10 +33,7 @@ import {
 import { OtpService } from '@/core/auth/services/otp.service';
 import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TotpService } from '@/core/auth/services/totp.service';
-import type {
-  AuthTokens,
-  RequestContext,
-} from '@/core/auth/types/auth-tokens.type';
+import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { TokenService } from '@/core/auth/services/token.service';
 import {
   BACKUP_CODE_BYTES,
@@ -268,15 +265,14 @@ export class TwoFactorService {
   async issueChallenge(
     user: User,
     enabledMethods: TwoFactorMethod[],
-    context: RequestContext,
   ): Promise<ChallengeIssued> {
     const challengeId = this.crypto.randomToken(24);
 
     const record: TwoFactorChallengeRecord = {
       userId: user.id,
       methodIds: enabledMethods.map((m) => m.id),
-      ip: context.ip,
-      userAgent: context.userAgent,
+      ip: undefined,
+      userAgent: undefined,
       createdAt: Date.now(),
     };
 
@@ -328,7 +324,6 @@ export class TwoFactorService {
     challengeId: string,
     type: TwoFactorMethodTypeValue,
     code: string,
-    context: RequestContext,
   ): Promise<AuthTokens> {
     const record = await this.cache.getTwoFactorChallenge(challengeId);
     if (!record) {
@@ -383,7 +378,7 @@ export class TwoFactorService {
     await this.twoFactor.touchLastUsed(method.id);
     await this.cache.deleteTwoFactorChallenge(challengeId);
 
-    return this.tokens.issue(user.id, context);
+    return this.tokens.issue(user.id);
   }
 
   private async tryConsumeBackupCode(
