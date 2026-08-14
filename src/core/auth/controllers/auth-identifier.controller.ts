@@ -18,7 +18,6 @@ import type { ServiceResponse } from '@/common/core/interceptors/response.interc
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import locals from '@/locals';
 import {
   AddEmailDto,
@@ -63,7 +62,7 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a secondary email' })
@@ -88,7 +87,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/email/confirm/otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm secondary email via OTP' })
@@ -101,7 +100,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/phone')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a phone number' })
@@ -115,7 +114,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_change_requested };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/phone/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm phone number via OTP' })
@@ -128,7 +127,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/:id/primary')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set an identifier as primary' })
@@ -142,7 +141,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.primary_identifier_updated };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('identifiers/:id')
   @ApiOperation({ summary: 'Remove a non-primary identifier' })
   @ApiOkResponse()
@@ -155,7 +154,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.identifier_removed };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('email/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary email change (sudo required)' })
@@ -186,7 +185,7 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('email/change/confirm/otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm primary email change via OTP' })
@@ -207,7 +206,7 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('phone/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary phone change (sudo required)' })
@@ -221,7 +220,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_change_requested };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('phone/change/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm primary phone change via OTP' })

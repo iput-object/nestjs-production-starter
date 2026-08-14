@@ -24,7 +24,6 @@ import type { ServiceResponse } from '@/common/core/interceptors/response.interc
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
@@ -177,7 +176,7 @@ export class AuthSessionController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('oauth/google/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Google account to the current user' })
@@ -190,7 +189,7 @@ export class AuthSessionController {
     return { message: locals.auth.oauth_linked };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('oauth/apple/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Apple account to the current user' })

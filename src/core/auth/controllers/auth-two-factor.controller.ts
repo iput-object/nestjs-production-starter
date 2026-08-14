@@ -19,7 +19,6 @@ import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
@@ -57,7 +56,7 @@ export class AuthTwoFactorController {
     private readonly helper: AuthControllerHelper,
   ) {}
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('2fa/methods')
   @ApiOperation({ summary: 'List enrolled two-factor methods' })
   @ApiOkResponse({ type: ListTwoFactorMethodsResponseDto })
@@ -70,7 +69,7 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/totp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
@@ -84,7 +83,7 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/totp/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm TOTP enrollment with a code' })
@@ -106,7 +105,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/email/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin email OTP two-factor enrollment' })
@@ -121,7 +120,7 @@ export class AuthTwoFactorController {
     return { message: locals.auth.two_factor_code_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/email/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm email OTP enrollment with a code' })
@@ -143,7 +142,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/sms/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin SMS OTP two-factor enrollment' })
@@ -158,7 +157,7 @@ export class AuthTwoFactorController {
     return { message: locals.auth.two_factor_code_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/sms/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm SMS OTP enrollment with a code' })
@@ -180,7 +179,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('2fa/methods/:methodId')
   @ApiOperation({ summary: 'Disable a two-factor method (sudo required)' })
   @ApiOkResponse()
@@ -193,7 +192,7 @@ export class AuthTwoFactorController {
     return { message: locals.auth.two_factor_disabled };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('2fa/backup-codes')
   @ApiOperation({ summary: 'Count remaining backup codes' })
   @ApiOkResponse({ type: CountBackupCodesResponseDto })
@@ -204,7 +203,7 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/backup-codes/regenerate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate backup codes (sudo required)' })

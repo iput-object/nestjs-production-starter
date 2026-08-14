@@ -14,7 +14,6 @@ import { plainToInstance } from 'class-transformer';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import locals from '@/locals';
 import {
   SudoOtpConfirmDto,
@@ -31,7 +30,7 @@ import { SudoService } from '@/core/auth/services/sudo.service';
 export class AuthSudoController {
   constructor(private readonly sudo: SudoService) {}
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('sudo')
   @ApiOperation({ summary: 'Check whether the current session has sudo' })
   @ApiOkResponse({ type: SudoStatusResponseDto })
@@ -47,7 +46,7 @@ export class AuthSudoController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('sudo')
   @ApiOperation({ summary: 'Clear the current session sudo grant' })
   @ApiOkResponse()
@@ -61,7 +60,7 @@ export class AuthSudoController {
     return { message: locals.auth.sudo_cleared };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('sudo/password')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -91,7 +90,7 @@ export class AuthSudoController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('sudo/otp/request')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -105,7 +104,7 @@ export class AuthSudoController {
     return { message: locals.auth.sudo_otp_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('sudo/otp/confirm')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -136,7 +135,7 @@ export class AuthSudoController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('sudo/2fa/send')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -152,7 +151,7 @@ export class AuthSudoController {
     return { message: locals.auth.sudo_otp_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('sudo/2fa')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -183,7 +182,7 @@ export class AuthSudoController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('sudo/options')
   @ApiOperation({ summary: 'List available sudo elevation methods' })
   @ApiOkResponse({ type: SudoOptionsResponseDto })

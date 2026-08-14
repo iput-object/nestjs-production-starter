@@ -39,7 +39,6 @@ import { AccountLifecycleService } from '@/core/auth/services/account-lifecycle.
 import { SudoService } from '@/core/auth/services/sudo.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 
 @Module({
@@ -72,7 +71,6 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     JwtStrategy,
     JwtRefreshStrategy,
     JwtAuthGuard,
-    VerifiedGuard,
     AuthCacheService,
     UserRepository,
     CredentialRepository,
@@ -112,7 +110,6 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     IdentifierRepository,
     AccountLifecycleService,
     JwtAuthGuard,
-    VerifiedGuard,
   ],
 })
 export class AuthModule {}

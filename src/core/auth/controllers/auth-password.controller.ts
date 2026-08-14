@@ -12,7 +12,6 @@ import { Throttle } from '@nestjs/throttler';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import locals from '@/locals';
 import { ChangePasswordDto } from '@/core/auth/dto/request/change-password.dto';
 import {
@@ -90,7 +89,7 @@ export class AuthPasswordController {
     return { message: locals.auth.password_reset_successful };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch('password/change')
   @ApiOperation({ summary: 'Change password (authenticated)' })
   @ApiOkResponse()
@@ -106,7 +105,7 @@ export class AuthPasswordController {
     return { message: locals.auth.password_changed };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('password/set')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set a password for an account without one' })
