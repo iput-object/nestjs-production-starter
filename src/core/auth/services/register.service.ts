@@ -36,7 +36,7 @@ export interface RegisterResult {
 
 /**
  * Creates the account, starts contact verification, and issues a session.
- * Business routes stay gated by VerifiedGuard until isAccountVerified is true.
+ * Business routes stay gated by JwtAuthGuard until isAccountVerified is true.
  */
 @Injectable()
 export class RegisterService {

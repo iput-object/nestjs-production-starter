@@ -11,6 +11,7 @@ import { FcmTokenRepository } from '@/core/fcm-token/repositories/fcm-token.repo
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { SECONDS_IN_DAY } from '@/core/auth/auth.constants';
+import { AUTH_POLICY } from '@/configs/auth.policy';
 import locals from '@/locals';
 
 @Injectable()
@@ -132,6 +133,15 @@ export class TokenService {
     return this.jwt.signAsync(payload, {
       secret: auth.jwtRefreshSecret,
       expiresIn: this.parseDurationSeconds(auth.jwtRefreshExpiresIn),
+    });
+  }
+
+  signSudoAccessToken(userId: string): Promise<string> {
+    const auth = this.config.get<Config['auth']>('auth')!;
+    const payload: JwtPayload = { sub: userId, tokenType: 'access', sudo: true };
+    return this.jwt.signAsync(payload, {
+      secret: auth.jwtAccessSecret,
+      expiresIn: AUTH_POLICY.sudoTtlSeconds,
     });
   }
 

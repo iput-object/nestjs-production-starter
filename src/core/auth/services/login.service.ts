@@ -42,7 +42,7 @@ export type LoginResult =
 
 /**
  * Issues a session even when the account is unverified. Business routes are
- * gated by {@link VerifiedGuard}; the client uses isAccountVerified on AuthUser
+ * gated by {@link JwtAuthGuard}; the client uses isAccountVerified on AuthUser
  * to send the user to the verify screen.
  */
 @Injectable()

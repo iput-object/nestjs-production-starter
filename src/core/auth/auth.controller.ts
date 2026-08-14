@@ -28,7 +28,6 @@ import { AUTH_TRANSPORT_HEADER } from '@/core/auth/auth.constants';
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { ChangePasswordDto } from '@/core/auth/dto/request/change-password.dto';
 import { DeactivateAccountDto } from '@/core/auth/dto/request/deactivate-account.dto';
@@ -122,9 +121,13 @@ import { PasswordResetService } from '@/core/auth/services/password-reset.servic
 import { PhoneVerifyService } from '@/core/auth/services/phone-verify.service';
 import { RegisterService } from '@/core/auth/services/register.service';
 import { SessionService } from '@/core/auth/services/session.service';
+import { StepUpService } from '@/core/auth/services/step-up.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
+import { SudoDto } from '@/core/auth/dto/request/sudo.dto';
+import { SudoResponseDto } from '@/core/auth/dto/response/sudo.response.dto';
+import { AUTH_POLICY } from '@/configs/auth.policy';
 import locals from '@/locals';
 
 const ApiTransportHeader = () =>
@@ -155,6 +158,7 @@ export class AuthController {
     private readonly accountLifecycle: AccountLifecycleService,
     private readonly twoFactor: TwoFactorService,
     private readonly totp: TotpService,
+    private readonly stepUp: StepUpService,
     private readonly helper: AuthControllerHelper,
   ) {}
 
@@ -269,7 +273,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('oauth/google/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Google account to the current user' })
@@ -282,7 +286,7 @@ export class AuthController {
     return { message: locals.auth.oauth_linked };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('oauth/apple/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Apple account to the current user' })
@@ -334,6 +338,35 @@ export class AuthController {
     }
     this.cookies.clearAuthCookies(res);
     return { message: locals.auth.logged_out_successfully };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sudo')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Elevate to sudo mode (re-authenticate with password)' })
+  @ApiOkResponse({ type: SudoResponseDto })
+  async sudo(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: SudoDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ServiceResponse<SudoResponseDto>> {
+    const sudoToken = await this.stepUp.elevate(userId, dto.password);
+    const expiresAt = new Date(Date.now() + AUTH_POLICY.sudoTtlSeconds * 1000);
+
+    // Overwrite only the access cookie; leave the refresh cookie intact.
+    if (!this.helper.wantsBearer(req)) {
+      this.cookies.setAccessCookie(res, sudoToken, expiresAt);
+    }
+
+    return {
+      data: plainToInstance(
+        SudoResponseDto,
+        { accessToken: sudoToken, expiresAt },
+        { excludeExtraneousValues: true },
+      ),
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -606,7 +639,7 @@ export class AuthController {
     return { message: locals.auth.password_reset_successful };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch('password/change')
   @ApiOperation({ summary: 'Change password (authenticated)' })
   @ApiOkResponse()
@@ -622,7 +655,7 @@ export class AuthController {
     return { message: locals.auth.password_changed };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('password/set')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set a password for an account without one' })
@@ -649,7 +682,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a secondary email' })
@@ -677,7 +710,7 @@ export class AuthController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/email/confirm/otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm secondary email via OTP' })
@@ -690,7 +723,7 @@ export class AuthController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/phone')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a phone number' })
@@ -707,7 +740,7 @@ export class AuthController {
     return { message: locals.auth.phone_change_requested };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/phone/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm phone number via OTP' })
@@ -720,7 +753,7 @@ export class AuthController {
     return { message: locals.auth.phone_added };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('identifiers/:id/primary')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set an identifier as primary' })
@@ -734,7 +767,7 @@ export class AuthController {
     return { message: locals.auth.primary_identifier_updated };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('identifiers/:id')
   @ApiOperation({ summary: 'Remove a non-primary identifier' })
   @ApiOkResponse()
@@ -747,7 +780,7 @@ export class AuthController {
     return { message: locals.auth.identifier_removed };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('email/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary email change (step-up required)' })
@@ -781,7 +814,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('email/change/confirm/otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm primary email change via OTP' })
@@ -802,7 +835,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('phone/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary phone change (step-up required)' })
@@ -819,7 +852,7 @@ export class AuthController {
     return { message: locals.auth.phone_change_requested };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('phone/change/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm primary phone change via OTP' })
@@ -849,7 +882,7 @@ export class AuthController {
     return { message: locals.auth.account_deactivated };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('2fa/methods')
   @ApiOperation({ summary: 'List enrolled two-factor methods' })
   @ApiOkResponse({ type: ListTwoFactorMethodsResponseDto })
@@ -862,7 +895,7 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/totp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin TOTP authenticator enrollment' })
@@ -876,7 +909,7 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/totp/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm TOTP enrollment with a code' })
@@ -898,7 +931,7 @@ export class AuthController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/email/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin email OTP two-factor enrollment' })
@@ -913,7 +946,7 @@ export class AuthController {
     return { message: locals.auth.two_factor_code_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/email/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm email OTP enrollment with a code' })
@@ -935,7 +968,7 @@ export class AuthController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/sms/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin SMS OTP two-factor enrollment' })
@@ -950,7 +983,7 @@ export class AuthController {
     return { message: locals.auth.two_factor_code_sent };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/enroll/sms/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirm SMS OTP enrollment with a code' })
@@ -972,7 +1005,7 @@ export class AuthController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('2fa/methods/:methodId')
   @ApiOperation({ summary: 'Disable a two-factor method (step-up required)' })
   @ApiOkResponse()
@@ -985,7 +1018,7 @@ export class AuthController {
     return { message: locals.auth.two_factor_disabled };
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('2fa/backup-codes')
   @ApiOperation({ summary: 'Count remaining backup codes' })
   @ApiOkResponse({ type: CountBackupCodesResponseDto })
@@ -996,7 +1029,7 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, VerifiedGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/backup-codes/regenerate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate backup codes (step-up required)' })

@@ -6,6 +6,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
+import { TokenService } from '@/core/auth/services/token.service';
 import locals from '@/locals';
 
 /**
@@ -14,7 +15,10 @@ import locals from '@/locals';
  */
 @Injectable()
 export class StepUpService {
-  constructor(private readonly credentials: CredentialRepository) {}
+  constructor(
+    private readonly credentials: CredentialRepository,
+    private readonly tokens: TokenService,
+  ) {}
 
   async requirePassword(userId: string, password?: string): Promise<void> {
     if (!password) {
@@ -33,5 +37,14 @@ export class StepUpService {
     if (!matches) {
       throw new UnauthorizedException(locals.auth.step_up_password_incorrect);
     }
+  }
+
+  /**
+   * Verify password and return a sudo-elevated access token.
+   * The returned token has `sudo: true` and a short TTL.
+   */
+  async elevate(userId: string, password: string): Promise<string> {
+    await this.requirePassword(userId, password);
+    return this.tokens.signSudoAccessToken(userId);
   }
 }

@@ -14,7 +14,6 @@ import {
   ApiOperation,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { VerifiedGuard } from '@/core/auth/guards/verified.guard';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
 import { TokenType } from '@/core/auth/decorators/token-type.decorator';
 import type { JwtPayload } from '@/core/auth/types/jwt-payload.type';
@@ -31,7 +30,7 @@ import { DeleteFileService } from '@/core/files/services/delete-file.service';
 import { ListFilesService } from '@/core/files/services/list-files.service';
 
 @Controller({ path: 'files', version: '1' })
-@UseGuards(JwtAuthGuard, VerifiedGuard)
+@UseGuards(JwtAuthGuard)
 @TokenType('access')
 export class FilesController {
   constructor(

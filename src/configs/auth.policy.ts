@@ -17,6 +17,8 @@ export const AUTH_POLICY = Object.freeze({
   identifierChangeTtlSeconds: 600,
   /** Soft-deleted identifiers become reclaimable after this grace period. */
   identifierReclaimGraceSeconds: 30 * 24 * 3600,
+  /** How long a sudo-elevated access token stays valid. */
+  sudoTtlSeconds: 600,
 });
 
 export const OTP_POLICY = Object.freeze({

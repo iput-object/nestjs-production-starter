@@ -1,5 +1,6 @@
 import {
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
+import { ALLOW_UNVERIFIED_KEY } from '@/core/auth/decorators/allow-unverified.decorator';
 import { OPTIONAL_AUTH_KEY } from '@/core/auth/decorators/optional-auth.decorator';
 import { TOKEN_TYPE_KEY } from '@/core/auth/decorators/token-type.decorator';
 import { JwtPayload, JwtTokenType } from '@/core/auth/types/jwt-payload.type';
@@ -45,13 +47,23 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       [context.getHandler(), context.getClass()],
     );
 
-    if (!requiredTokenType) {
-      return user;
+    if (requiredTokenType) {
+      const payload = user as unknown as JwtPayload;
+      if (payload.tokenType !== requiredTokenType) {
+        throw new UnauthorizedException(locals.auth.invalid_token_type);
+      }
     }
 
-    const payload = user as unknown as JwtPayload;
-    if (payload.tokenType !== requiredTokenType) {
-      throw new UnauthorizedException(locals.auth.invalid_token_type);
+    // Verification check — require a verified account unless opted out.
+    const allowUnverified = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_UNVERIFIED_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!allowUnverified) {
+      const payload = user as unknown as JwtPayload;
+      if (payload.isAccountVerified !== true) {
+        throw new ForbiddenException(locals.auth.account_verification_required);
+      }
     }
 
     return user;
