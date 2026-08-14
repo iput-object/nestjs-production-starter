@@ -6,12 +6,7 @@ import { FilesModule } from '@/core/files/files.module';
 import { HealthModule } from '@/core/health/health.module';
 
 @Module({
-  imports: [
-    AuditModule,
-    AuthModule,
-    FcmTokenModule,
-    FilesModule,
-    HealthModule,
-  ],
+  imports: [AuditModule, AuthModule, FcmTokenModule, FilesModule, HealthModule],
+  exports: [AuditModule, AuthModule, FcmTokenModule, FilesModule, HealthModule],
 })
 export class CoreModule {}
