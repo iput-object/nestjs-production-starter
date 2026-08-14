@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type User, type UserIdentifier } from '@prisma-client';
-import { IdentifierType } from '@prisma-client';
+import { IdentifierType, Prisma, type User, type UserIdentifier } from '@prisma-client';
+import { mapPrismaSerializationFailure } from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateIdentifierInput {
@@ -171,13 +171,7 @@ export class IdentifierRepository {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2034'
-      ) {
-        return 'last';
-      }
-      throw err;
+      return mapPrismaSerializationFailure(err, 'last');
     }
   }
 

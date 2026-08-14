@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Credential } from '@prisma-client';
 import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
+import { mapPrismaSerializationFailure } from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateCredentialInput {
@@ -98,13 +99,7 @@ export class CredentialRepository {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2034'
-      ) {
-        return 'last';
-      }
-      throw err;
+      return mapPrismaSerializationFailure(err, 'last');
     }
   }
 
