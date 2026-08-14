@@ -195,6 +195,8 @@ export class OtpService {
         return 'Password reset code';
       case 'enroll-2fa':
         return 'Two-factor enrollment code';
+      case 'sudo':
+        return 'Confirm your action (Sudo)';
       case 'change-email':
       case 'add-email':
         return 'Confirm your email';

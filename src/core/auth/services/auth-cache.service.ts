@@ -11,7 +11,8 @@ export type OtpPurpose =
   | 'change-email'
   | 'add-email'
   | 'add-phone'
-  | 'change-phone';
+  | 'change-phone'
+  | 'sudo';
 
 export interface OtpRecord {
   codeHash: string;

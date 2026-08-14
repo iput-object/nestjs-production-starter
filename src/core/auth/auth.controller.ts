@@ -126,6 +126,7 @@ import { TokenService } from '@/core/auth/services/token.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import { SudoDto } from '@/core/auth/dto/request/sudo.dto';
+import { SudoSendChallengeDto } from '@/core/auth/dto/request/sudo-send-challenge.dto';
 import { SudoResponseDto } from '@/core/auth/dto/response/sudo.response.dto';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import locals from '@/locals';
@@ -341,10 +342,23 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('sudo/send')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Request an OTP code for sudo authentication' })
+  @ApiOkResponse()
+  async sendSudoChallenge(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: SudoSendChallengeDto,
+  ): Promise<ServiceResponse<void>> {
+    await this.stepUp.sendSudoChallenge(userId, dto.method);
+    return { message: locals.auth.two_factor_code_sent };
+  }
+
   @Post('sudo')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Elevate to sudo mode (re-authenticate with password)' })
+  @ApiOperation({ summary: 'Elevate to sudo mode (re-authenticate)' })
   @ApiOkResponse({ type: SudoResponseDto })
   async sudo(
     @CurrentUser('sub') userId: string,
@@ -352,7 +366,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ServiceResponse<SudoResponseDto>> {
-    const sudoToken = await this.stepUp.elevate(userId, dto.password);
+    const sudoToken = await this.stepUp.elevate(userId, dto);
     const expiresAt = new Date(Date.now() + AUTH_POLICY.sudoTtlSeconds * 1000);
 
     // Overwrite only the access cookie; leave the refresh cookie intact.
