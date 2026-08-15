@@ -16,5 +16,6 @@ export const AUDIT_PIPELINE = Object.freeze({
   flushIntervalMs: 2_000,
   /** Stable BullMQ job ids so concurrent triggers collapse to one worker. */
   flushJobId: 'audit-flush',
-  repeatFlushJobId: 'audit-flush-repeat',
+  /** Job scheduler that periodically drains the inbox. */
+  flushSchedulerId: 'audit-flush-repeat',
 });

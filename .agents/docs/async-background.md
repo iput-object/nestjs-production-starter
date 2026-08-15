@@ -75,7 +75,7 @@ class ReportsProcessor {
 }
 ```
 
-Scheduled jobs: `repeat: { cron: '0 0 * * *' }` with a stable `jobId` to dedupe.
+Scheduled jobs: `queue.upsertJobScheduler('daily', { pattern: '0 0 * * *' }, { name: 'job-name' })`.
 
 ## DevOps & Deployment (LOW-MEDIUM)
 

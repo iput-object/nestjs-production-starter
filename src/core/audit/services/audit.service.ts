@@ -35,14 +35,16 @@ export class AuditService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.queue.add(
-      AUDIT_JOB_FLUSH,
-      {},
+    await this.queue.upsertJobScheduler(
+      AUDIT_PIPELINE.flushSchedulerId,
+      { every: AUDIT_PIPELINE.flushIntervalMs },
       {
-        jobId: AUDIT_PIPELINE.repeatFlushJobId,
-        repeat: { every: AUDIT_PIPELINE.flushIntervalMs },
-        removeOnComplete: true,
-        removeOnFail: 100,
+        name: AUDIT_JOB_FLUSH,
+        data: {},
+        opts: {
+          removeOnComplete: true,
+          removeOnFail: 100,
+        },
       },
     );
   }
