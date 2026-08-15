@@ -17,7 +17,6 @@ import {
 import { CredentialRepository } from '@/core/auth/repositories/credential.repository';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { BCRYPT_ROUNDS, APPLE_RELAY_DOMAIN } from '@/core/auth/auth.constants';
 import locals from '@/locals';
@@ -29,7 +28,6 @@ export class PasswordChangeService {
     private readonly users: UserRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly tokens: TokenService,
-    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -70,56 +68,49 @@ export class PasswordChangeService {
     });
   }
 
-  async set(
-    userId: string,
-    sessionId: string,
-    newPassword: string,
-  ): Promise<void> {
-    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
+  async set(userId: string, newPassword: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException(locals.auth.user_not_found);
+    }
 
-      const user = await this.users.findById(userId);
-      if (!user) {
-        throw new NotFoundException(locals.auth.user_not_found);
-      }
-
-      const primaryEmail = await this.identifiers.findPrimary(
-        userId,
-        IdentifierType.EMAIL,
+    const primaryEmail = await this.identifiers.findPrimary(
+      userId,
+      IdentifierType.EMAIL,
+    );
+    if (!primaryEmail || !primaryEmail.isVerified) {
+      throw new BadRequestException(
+        locals.auth.verified_email_required_for_password,
       );
-      if (!primaryEmail || !primaryEmail.isVerified) {
-        throw new BadRequestException(
-          locals.auth.verified_email_required_for_password,
-        );
-      }
-      if (primaryEmail.value.toLowerCase().endsWith(APPLE_RELAY_DOMAIN)) {
-        throw new BadRequestException(
-          locals.auth.real_email_required_for_password,
-        );
-      }
-
-      const existing = await this.credentials.findByUserAndProvider(
-        userId,
-        AuthProvider.EMAIL,
+    }
+    if (primaryEmail.value.toLowerCase().endsWith(APPLE_RELAY_DOMAIN)) {
+      throw new BadRequestException(
+        locals.auth.real_email_required_for_password,
       );
-      if (existing) {
-        throw new ConflictException(locals.auth.password_credential_exists);
-      }
+    }
 
-      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-      await this.credentials.create({
-        userId,
-        provider: AuthProvider.EMAIL,
-        providerId: primaryEmail.value,
-        passwordHash,
-      });
-      await this.tokens.revokeAllForUser(userId);
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.PASSWORD_SET,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.USER,
-        resourceId: userId,
-      });
+    const existing = await this.credentials.findByUserAndProvider(
+      userId,
+      AuthProvider.EMAIL,
+    );
+    if (existing) {
+      throw new ConflictException(locals.auth.password_credential_exists);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.credentials.create({
+      userId,
+      provider: AuthProvider.EMAIL,
+      providerId: primaryEmail.value,
+      passwordHash,
+    });
+    await this.tokens.revokeAllForUser(userId);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.PASSWORD_SET,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: userId,
     });
   }
 }

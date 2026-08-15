@@ -33,7 +33,6 @@ import {
   AuthAuditAction,
 } from '@/core/auth/constants/auth-audit.constants';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import { TotpService } from '@/core/auth/services/totp.service';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
 import { TokenService } from '@/core/auth/services/token.service';
@@ -63,7 +62,6 @@ export class TwoFactorService {
     private readonly otpSession: OtpSessionService,
     private readonly totp: TotpService,
     private readonly tokens: TokenService,
-    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -73,35 +71,32 @@ export class TwoFactorService {
   }
 
   // ---------- Email OTP enroll ----------
-  async enrollEmailOtp(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.runWithSudo(userId, sessionId, async () => {
+  async enrollEmailOtp(userId: string): Promise<void> {
+    const destination = await this.verifiedDestination(
+      userId,
+      IdentifierType.EMAIL,
+      locals.auth.no_email_to_enroll,
+    );
 
-      const destination = await this.verifiedDestination(
-        userId,
-        IdentifierType.EMAIL,
-        locals.auth.no_email_to_enroll,
-      );
+    const existing = await this.twoFactor.findByUserAndType(
+      userId,
+      TwoFactorMethodType.EMAIL_OTP,
+    );
+    if (existing?.isEnabled) {
+      throw new ConflictException(locals.auth.email_otp_already_enabled);
+    }
 
-      const existing = await this.twoFactor.findByUserAndType(
-        userId,
-        TwoFactorMethodType.EMAIL_OTP,
-      );
-      if (existing?.isEnabled) {
-        throw new ConflictException(locals.auth.email_otp_already_enabled);
-      }
+    await this.twoFactor.upsert({
+      userId,
+      type: TwoFactorMethodType.EMAIL_OTP,
+      destination,
+    });
 
-      await this.twoFactor.upsert({
-        userId,
-        type: TwoFactorMethodType.EMAIL_OTP,
-        destination,
-      });
-
-      await this.otpSession.issue({
-        userId,
-        purpose: OtpPurpose.ENROLL_2FA,
-        channel: 'email',
-        destination,
-      });
+    await this.otpSession.issue({
+      userId,
+      purpose: OtpPurpose.ENROLL_2FA,
+      channel: 'email',
+      destination,
     });
   }
 
@@ -133,35 +128,32 @@ export class TwoFactorService {
   }
 
   // ---------- SMS OTP enroll ----------
-  async enrollSmsOtp(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.runWithSudo(userId, sessionId, async () => {
+  async enrollSmsOtp(userId: string): Promise<void> {
+    const destination = await this.verifiedDestination(
+      userId,
+      IdentifierType.PHONE,
+      locals.auth.no_phone_to_enroll,
+    );
 
-      const destination = await this.verifiedDestination(
-        userId,
-        IdentifierType.PHONE,
-        locals.auth.no_phone_to_enroll,
-      );
+    const existing = await this.twoFactor.findByUserAndType(
+      userId,
+      TwoFactorMethodType.SMS_OTP,
+    );
+    if (existing?.isEnabled) {
+      throw new ConflictException(locals.auth.sms_otp_already_enabled);
+    }
 
-      const existing = await this.twoFactor.findByUserAndType(
-        userId,
-        TwoFactorMethodType.SMS_OTP,
-      );
-      if (existing?.isEnabled) {
-        throw new ConflictException(locals.auth.sms_otp_already_enabled);
-      }
+    await this.twoFactor.upsert({
+      userId,
+      type: TwoFactorMethodType.SMS_OTP,
+      destination,
+    });
 
-      await this.twoFactor.upsert({
-        userId,
-        type: TwoFactorMethodType.SMS_OTP,
-        destination,
-      });
-
-      await this.otpSession.issue({
-        userId,
-        purpose: OtpPurpose.ENROLL_2FA,
-        channel: 'sms',
-        destination,
-      });
+    await this.otpSession.issue({
+      userId,
+      purpose: OtpPurpose.ENROLL_2FA,
+      channel: 'sms',
+      destination,
     });
   }
 
@@ -193,46 +185,35 @@ export class TwoFactorService {
   }
 
   // ---------- Disable ----------
-  async disable(
-    userId: string,
-    sessionId: string,
-    methodId: string,
-  ): Promise<void> {
-    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
-      const method = await this.twoFactor.findById(methodId);
-      if (!method || method.userId !== userId) {
-        throw new NotFoundException(locals.auth.two_factor_method_not_found);
-      }
-      await this.twoFactor.delete(methodId);
+  async disable(userId: string, methodId: string): Promise<void> {
+    const method = await this.twoFactor.findById(methodId);
+    if (!method || method.userId !== userId) {
+      throw new NotFoundException(locals.auth.two_factor_method_not_found);
+    }
+    await this.twoFactor.delete(methodId);
 
-      const remaining = await this.twoFactor.findEnabledForUser(userId);
-      if (remaining.length === 0) {
-        await this.twoFactor.clearBackupCodes(userId);
-      }
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.TWO_FACTOR_DISABLED,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
-        resourceId: methodId,
-        metadata: { methodId, type: method.type },
-      });
+    const remaining = await this.twoFactor.findEnabledForUser(userId);
+    if (remaining.length === 0) {
+      await this.twoFactor.clearBackupCodes(userId);
+    }
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.TWO_FACTOR_DISABLED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.TWO_FACTOR,
+      resourceId: methodId,
+      metadata: { methodId, type: method.type },
     });
   }
 
   // ---------- Backup codes (per-user) ----------
-  async regenerateBackupCodes(
-    userId: string,
-    sessionId: string,
-  ): Promise<BackupCodesResult> {
-    return this.sudo.runWithSudoOnce(userId, sessionId, async () => {
-      const enabled = await this.twoFactor.findEnabledForUser(userId);
-      if (enabled.length === 0) {
-        throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
-      }
-      const codes = await this.replaceBackupCodes(userId);
-      return { codes };
-    });
+  async regenerateBackupCodes(userId: string): Promise<BackupCodesResult> {
+    const enabled = await this.twoFactor.findEnabledForUser(userId);
+    if (enabled.length === 0) {
+      throw new ConflictException(locals.auth.enable_2fa_before_backup_codes);
+    }
+    const codes = await this.replaceBackupCodes(userId);
+    return { codes };
   }
 
   async countBackupCodes(userId: string): Promise<{ remaining: number }> {

@@ -13,7 +13,6 @@ import {
 } from '@/core/auth/constants/auth-audit.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import locals from '@/locals';
 
@@ -23,26 +22,23 @@ export class AccountLifecycleService {
     private readonly users: UserRepository,
     private readonly identifiers: IdentifierRepository,
     private readonly tokens: TokenService,
-    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
-  async deactivate(userId: string, sessionId: string): Promise<void> {
-    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
-      const user = await this.users.findById(userId);
-      if (!user) {
-        throw new NotFoundException(locals.auth.user_not_found);
-      }
+  async deactivate(userId: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException(locals.auth.user_not_found);
+    }
 
-      await this.users.softDelete(userId);
-      await this.tokens.revokeAllForUser(userId);
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.ACCOUNT_DEACTIVATED,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.USER,
-        resourceId: userId,
-      });
+    await this.users.softDelete(userId);
+    await this.tokens.revokeAllForUser(userId);
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.ACCOUNT_DEACTIVATED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: userId,
     });
   }
 

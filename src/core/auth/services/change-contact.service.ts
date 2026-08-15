@@ -23,7 +23,6 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { OtpSessionService } from '@/core/auth/services/otp-session.service';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import locals from '@/locals';
 
@@ -34,51 +33,43 @@ export class ChangeContactService {
     private readonly identifiers: IdentifierRepository,
     private readonly twoFactor: TwoFactorRepository,
     private readonly otpSession: OtpSessionService,
-    private readonly sudo: SudoService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
   ) {}
 
-  async requestEmailChange(
-    userId: string,
-    sessionId: string,
-    newEmail: string,
-  ): Promise<void> {
-    await this.sudo.runWithSudo(userId, sessionId, async () => {
+  async requestEmailChange(userId: string, newEmail: string): Promise<void> {
+    const email = normalizeEmail(newEmail);
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.EMAIL,
+      email,
+    );
+    if (owner && owner.userId !== userId) {
+      throw new ConflictException(locals.auth.email_already_in_use);
+    }
 
-      const email = normalizeEmail(newEmail);
-      const owner = await this.identifiers.findByTypeValue(
-        IdentifierType.EMAIL,
-        email,
-      );
-      if (owner && owner.userId !== userId) {
-        throw new ConflictException(locals.auth.email_already_in_use);
-      }
+    const primary = await this.identifiers.findPrimary(
+      userId,
+      IdentifierType.EMAIL,
+    );
 
-      const primary = await this.identifiers.findPrimary(
-        userId,
-        IdentifierType.EMAIL,
-      );
+    await this.otpSession.issue({
+      userId,
+      purpose: OtpPurpose.CHANGE_EMAIL,
+      channel: 'email',
+      destination: email,
+    });
 
-      await this.otpSession.issue({
-        userId,
-        purpose: OtpPurpose.CHANGE_EMAIL,
-        channel: 'email',
-        destination: email,
-      });
+    if (primary?.value) {
+      await this.notifyOldEmail(primary.value, email);
+    }
 
-      if (primary?.value) {
-        await this.notifyOldEmail(primary.value, email);
-      }
-
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-        metadata: { email },
-      });
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.EMAIL_CHANGE_REQUESTED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      metadata: { email },
     });
   }
 
@@ -105,36 +96,29 @@ export class ChangeContactService {
     return this.applyEmailChange(consumed.userId, consumed.destination);
   }
 
-  async requestPhoneChange(
-    userId: string,
-    sessionId: string,
-    newPhone: string,
-  ): Promise<void> {
-    await this.sudo.runWithSudo(userId, sessionId, async () => {
+  async requestPhoneChange(userId: string, newPhone: string): Promise<void> {
+    const phone = normalizePhone(newPhone);
+    const owner = await this.identifiers.findByTypeValue(
+      IdentifierType.PHONE,
+      phone,
+    );
+    if (owner && owner.userId !== userId) {
+      throw new ConflictException(locals.auth.phone_already_in_use);
+    }
 
-      const phone = normalizePhone(newPhone);
-      const owner = await this.identifiers.findByTypeValue(
-        IdentifierType.PHONE,
-        phone,
-      );
-      if (owner && owner.userId !== userId) {
-        throw new ConflictException(locals.auth.phone_already_in_use);
-      }
+    await this.otpSession.issue({
+      userId,
+      purpose: OtpPurpose.CHANGE_PHONE,
+      channel: 'sms',
+      destination: phone,
+    });
 
-      await this.otpSession.issue({
-        userId,
-        purpose: OtpPurpose.CHANGE_PHONE,
-        channel: 'sms',
-        destination: phone,
-      });
-
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.PHONE_ADDED,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
-        metadata: { phone, mode: 'change-request' },
-      });
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.PHONE_ADDED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.IDENTIFIER,
+      metadata: { phone, mode: 'change-request' },
     });
   }
 

@@ -27,5 +27,8 @@ export const APPLE_RELAY_DOMAIN = '@privaterelay.appleid.com';
 export const BACKUP_CODE_COUNT = 10;
 export const BACKUP_CODE_BYTES = 5; // 5 bytes → 10 hex chars per code
 
+/** When false, sudo-gated routes skip grant checks and consume. */
+export const SUDO_ENABLED = true;
+
 // Used to parse JWT expiry strings like "7d" into seconds.
 export const SECONDS_IN_DAY = 86_400;

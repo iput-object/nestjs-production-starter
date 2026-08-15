@@ -18,8 +18,8 @@ import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
+import { RequireSudo } from '@/core/auth/decorators/require-sudo.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
@@ -66,20 +66,17 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('2fa/enroll/totp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Begin TOTP authenticator enrollment (sudo required)',
   })
   @ApiOkResponse({ type: EnrollTotpResponseDto })
-  async enrollTotp(
-    @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
-  ) {
+  async enrollTotp(@CurrentUser('sub') userId: string) {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    const enrollment = await this.totp.enroll(user, sessionId);
+    const enrollment = await this.totp.enroll(user);
     return plainToInstance(EnrollTotpResponseDto, enrollment, {
       excludeExtraneousValues: true,
     });
@@ -107,7 +104,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('2fa/enroll/email/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -117,11 +114,10 @@ export class AuthTwoFactorController {
   @ApiOkResponse()
   async enrollEmailOtp(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    await this.twoFactor.enrollEmailOtp(userId, sessionId);
+    await this.twoFactor.enrollEmailOtp(userId);
     return { message: locals.auth.two_factor_code_sent };
   }
 
@@ -147,7 +143,7 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('2fa/enroll/sms/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -157,11 +153,10 @@ export class AuthTwoFactorController {
   @ApiOkResponse()
   async enrollSmsOtp(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(locals.auth.user_not_found);
-    await this.twoFactor.enrollSmsOtp(userId, sessionId);
+    await this.twoFactor.enrollSmsOtp(userId);
     return { message: locals.auth.two_factor_code_sent };
   }
 
@@ -187,16 +182,15 @@ export class AuthTwoFactorController {
       : undefined;
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Delete('2fa/methods/:methodId')
   @ApiOperation({ summary: 'Disable a two-factor method (sudo required)' })
   @ApiOkResponse()
   async disableTwoFactor(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Param('methodId') methodId: string,
   ): Promise<ServiceResponse<void>> {
-    await this.twoFactor.disable(userId, sessionId, methodId);
+    await this.twoFactor.disable(userId, methodId);
     return { message: locals.auth.two_factor_disabled };
   }
 
@@ -211,19 +205,13 @@ export class AuthTwoFactorController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Post('2fa/backup-codes/regenerate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate backup codes (sudo required)' })
   @ApiOkResponse({ type: RegenerateBackupCodesResponseDto })
-  async regenerateBackupCodes(
-    @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
-  ) {
-    const result = await this.twoFactor.regenerateBackupCodes(
-      userId,
-      sessionId,
-    );
+  async regenerateBackupCodes(@CurrentUser('sub') userId: string) {
+    const result = await this.twoFactor.regenerateBackupCodes(userId);
     return plainToInstance(RegenerateBackupCodesResponseDto, result, {
       excludeExtraneousValues: true,
     });

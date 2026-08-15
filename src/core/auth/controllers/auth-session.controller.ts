@@ -23,8 +23,8 @@ import type { Request, Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
+import { RequireSudo } from '@/core/auth/decorators/require-sudo.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import {
   ApiTransportHeader,
   AuthControllerHelper,
@@ -189,55 +189,51 @@ export class AuthSessionController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('oauth/google/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Google account (sudo required)' })
   @ApiOkResponse()
   async linkGoogle(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: LinkGoogleDto,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkGoogle(userId, sessionId, dto.idToken);
+    await this.oauth.linkGoogle(userId, dto.idToken);
     return { message: locals.auth.oauth_linked };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('oauth/apple/link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link Apple account (sudo required)' })
   @ApiOkResponse()
   async linkApple(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: LinkAppleDto,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.linkApple(userId, sessionId, dto.idToken);
+    await this.oauth.linkApple(userId, dto.idToken);
     return { message: locals.auth.oauth_linked };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Delete('oauth/google')
   @ApiOperation({ summary: 'Unlink Google account (sudo required)' })
   @ApiOkResponse()
   async unlinkGoogle(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.unlinkGoogle(userId, sessionId);
+    await this.oauth.unlinkGoogle(userId);
     return { message: locals.auth.oauth_unlinked };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Delete('oauth/apple')
   @ApiOperation({ summary: 'Unlink Apple account (sudo required)' })
   @ApiOkResponse()
   async unlinkApple(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
   ): Promise<ServiceResponse<void>> {
-    await this.oauth.unlinkApple(userId, sessionId);
+    await this.oauth.unlinkApple(userId);
     return { message: locals.auth.oauth_unlinked };
   }
 

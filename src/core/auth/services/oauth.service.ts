@@ -27,7 +27,6 @@ import { CredentialRepository } from '@/core/auth/repositories/credential.reposi
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import { TokenService } from '@/core/auth/services/token.service';
 import { TwoFactorService } from '@/core/auth/services/two-factor.service';
 import type { AuthTokens } from '@/core/auth/types/auth-tokens.type';
@@ -64,7 +63,6 @@ export class OAuthService {
     private readonly twoFactorRepo: TwoFactorRepository,
     private readonly twoFactor: TwoFactorService,
     private readonly tokens: TokenService,
-    private readonly sudo: SudoService,
     private readonly audit: AuditService,
   ) {}
 
@@ -78,34 +76,22 @@ export class OAuthService {
     return this.loginOrCreate(identity);
   }
 
-  async linkGoogle(
-    userId: string,
-    sessionId: string,
-    idToken: string,
-  ): Promise<void> {
+  async linkGoogle(userId: string, idToken: string): Promise<void> {
     const identity = await this.verifyGoogle(idToken);
-    await this.sudo.runWithSudo(userId, sessionId, () =>
-      this.linkToUser(userId, identity),
-    );
+    await this.linkToUser(userId, identity);
   }
 
-  async linkApple(
-    userId: string,
-    sessionId: string,
-    idToken: string,
-  ): Promise<void> {
+  async linkApple(userId: string, idToken: string): Promise<void> {
     const identity = await this.verifyApple(idToken);
-    await this.sudo.runWithSudo(userId, sessionId, () =>
-      this.linkToUser(userId, identity),
-    );
+    await this.linkToUser(userId, identity);
   }
 
-  async unlinkGoogle(userId: string, sessionId: string): Promise<void> {
-    await this.unlinkProvider(userId, sessionId, AuthProvider.GOOGLE);
+  async unlinkGoogle(userId: string): Promise<void> {
+    await this.unlinkProvider(userId, AuthProvider.GOOGLE);
   }
 
-  async unlinkApple(userId: string, sessionId: string): Promise<void> {
-    await this.unlinkProvider(userId, sessionId, AuthProvider.APPLE);
+  async unlinkApple(userId: string): Promise<void> {
+    await this.unlinkProvider(userId, AuthProvider.APPLE);
   }
 
   private async loginOrCreate(
@@ -262,7 +248,6 @@ export class OAuthService {
 
   private async unlinkProvider(
     userId: string,
-    sessionId: string,
     provider: typeof AuthProvider.GOOGLE | typeof AuthProvider.APPLE,
   ): Promise<void> {
     const credential = await this.credentials.findByUserAndProvider(
@@ -273,29 +258,27 @@ export class OAuthService {
       throw new NotFoundException(locals.auth.oauth_not_linked);
     }
 
-    await this.sudo.runWithSudoOnce(userId, sessionId, async () => {
-      const outcome = await this.credentials.deleteOAuthIfNotLastLogin(
-        userId,
-        credential.id,
-      );
-      if (outcome === 'missing') {
-        throw new NotFoundException(locals.auth.oauth_not_linked);
-      }
-      if (outcome === 'last') {
-        throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
-      }
-      if (outcome === 'conflict') {
-        throw new ConflictException(locals.auth.action_conflict);
-      }
+    const outcome = await this.credentials.deleteOAuthIfNotLastLogin(
+      userId,
+      credential.id,
+    );
+    if (outcome === 'missing') {
+      throw new NotFoundException(locals.auth.oauth_not_linked);
+    }
+    if (outcome === 'last') {
+      throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
+    }
+    if (outcome === 'conflict') {
+      throw new ConflictException(locals.auth.action_conflict);
+    }
 
-      await this.audit.record({
-        module: AUTH_AUDIT_MODULE,
-        action: AuthAuditAction.OAUTH_UNLINKED,
-        userId,
-        resourceType: AUTH_AUDIT_RESOURCE.USER,
-        resourceId: userId,
-        metadata: { provider },
-      });
+    await this.audit.record({
+      module: AUTH_AUDIT_MODULE,
+      action: AuthAuditAction.OAUTH_UNLINKED,
+      userId,
+      resourceType: AUTH_AUDIT_RESOURCE.USER,
+      resourceId: userId,
+      metadata: { provider },
     });
   }
 

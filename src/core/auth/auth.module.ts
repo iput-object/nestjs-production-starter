@@ -40,6 +40,7 @@ import { SudoService } from '@/core/auth/services/sudo.service';
 import { DevSecretLogger } from '@/core/auth/services/dev-secret-logger.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
 import { SudoGuard } from '@/core/auth/guards/sudo.guard';
+import { SudoConsumeInterceptor } from '@/core/auth/interceptors/sudo-consume.interceptor';
 import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
 
 @Module({
@@ -73,6 +74,7 @@ import { FcmTokenModule } from '@/core/fcm-token/fcm-token.module';
     JwtRefreshStrategy,
     JwtAuthGuard,
     SudoGuard,
+    SudoConsumeInterceptor,
     AuthCacheService,
     UserRepository,
     CredentialRepository,

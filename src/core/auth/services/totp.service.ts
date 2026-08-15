@@ -1,10 +1,8 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
-  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { generateSecret, generateURI, verifySync } from 'otplib';
@@ -16,7 +14,6 @@ import { Config } from '@/configs/environment.config';
 import { CryptoService } from '@/common/crypto/crypto.service';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
 import { TwoFactorRepository } from '@/core/auth/repositories/two-factor.repository';
-import { SudoService } from '@/core/auth/services/sudo.service';
 import locals from '@/locals';
 
 export interface TotpEnrollmentResult {
@@ -33,50 +30,46 @@ export class TotpService {
     private readonly crypto: CryptoService,
     private readonly twoFactor: TwoFactorRepository,
     private readonly identifiers: IdentifierRepository,
-    @Inject(forwardRef(() => SudoService))
-    private readonly sudo: SudoService,
   ) {}
 
-  async enroll(user: User, sessionId: string): Promise<TotpEnrollmentResult> {
-    return this.sudo.runWithSudo(user.id, sessionId, async () => {
-      const existing = await this.twoFactor.findByUserAndType(
-        user.id,
-        TwoFactorMethodType.TOTP,
-      );
-      if (existing?.isEnabled) {
-        throw new ConflictException(locals.auth.totp_already_enabled);
-      }
+  async enroll(user: User): Promise<TotpEnrollmentResult> {
+    const existing = await this.twoFactor.findByUserAndType(
+      user.id,
+      TwoFactorMethodType.TOTP,
+    );
+    if (existing?.isEnabled) {
+      throw new ConflictException(locals.auth.totp_already_enabled);
+    }
 
-      const totp = this.config.get<Config['totp']>('totp')!;
-      const secret = generateSecret();
-      const primaryEmail = await this.identifiers.findPrimary(
-        user.id,
-        IdentifierType.EMAIL,
-      );
-      const accountName = primaryEmail?.value ?? user.id;
+    const totp = this.config.get<Config['totp']>('totp')!;
+    const secret = generateSecret();
+    const primaryEmail = await this.identifiers.findPrimary(
+      user.id,
+      IdentifierType.EMAIL,
+    );
+    const accountName = primaryEmail?.value ?? user.id;
 
-      const encryptedSecret = this.crypto.encrypt(secret);
-      const method = await this.twoFactor.upsert({
-        userId: user.id,
-        type: TwoFactorMethodType.TOTP,
-        secret: encryptedSecret,
-      });
-
-      const otpauthUrl = generateURI({
-        issuer: totp.issuer,
-        label: accountName,
-        secret,
-        strategy: 'totp',
-      });
-      const qrDataUrl = await toDataURL(otpauthUrl);
-
-      return {
-        methodId: method.id,
-        secret,
-        otpauthUrl,
-        qrDataUrl,
-      };
+    const encryptedSecret = this.crypto.encrypt(secret);
+    const method = await this.twoFactor.upsert({
+      userId: user.id,
+      type: TwoFactorMethodType.TOTP,
+      secret: encryptedSecret,
     });
+
+    const otpauthUrl = generateURI({
+      issuer: totp.issuer,
+      label: accountName,
+      secret,
+      strategy: 'totp',
+    });
+    const qrDataUrl = await toDataURL(otpauthUrl);
+
+    return {
+      methodId: method.id,
+      secret,
+      otpauthUrl,
+      qrDataUrl,
+    };
   }
 
   async confirm(userId: string, code: string): Promise<void> {

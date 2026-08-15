@@ -1,15 +1,14 @@
 import {
   BadRequestException,
   ForbiddenException,
-  Inject,
   Injectable,
   UnauthorizedException,
-  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { IdentifierType } from '@prisma-client';
 import { AUTH_POLICY } from '@/configs/auth.policy';
 import { CryptoService } from '@/common/crypto/crypto.service';
+import { SUDO_ENABLED } from '@/core/auth/auth.constants';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import {
   OtpPurpose,
@@ -46,7 +45,6 @@ export class SudoService {
     private readonly identifiers: IdentifierRepository,
     private readonly twoFactor: TwoFactorRepository,
     private readonly otpSession: OtpSessionService,
-    @Inject(forwardRef(() => TotpService))
     private readonly totp: TotpService,
     private readonly crypto: CryptoService,
   ) {}
@@ -109,6 +107,9 @@ export class SudoService {
     userId: string,
     sessionId: string | undefined,
   ): Promise<void> {
+    if (!SUDO_ENABLED) {
+      return;
+    }
     if (!sessionId) {
       throw new ForbiddenException(locals.auth.sudo_required);
     }
@@ -122,13 +123,16 @@ export class SudoService {
   }
 
   /**
-   * Atomically consume the sudo grant for a one-shot mutation.
+   * Atomically consume the sudo grant after a one-shot mutation succeeds.
    * Parallel callers: only one wins; the rest get {@link locals.auth.sudo_required}.
    */
   async consumeSudo(
     userId: string,
     sessionId: string | undefined,
   ): Promise<void> {
+    if (!SUDO_ENABLED) {
+      return;
+    }
     if (!sessionId) {
       throw new ForbiddenException(locals.auth.sudo_required);
     }
@@ -136,41 +140,6 @@ export class SudoService {
     if (!grant || grant.expiresAt <= Date.now()) {
       throw new ForbiddenException(locals.auth.sudo_required);
     }
-  }
-
-  /**
-   * Run a sudo-gated mutation.
-   *
-   * - `consume: false` (default) — GitHub-style timed window; grant stays until
-   *   TTL, logout, or explicit clear.
-   * - `consume: true` — one-shot; grant is taken only after `fn` succeeds so
-   *   validation failures do not burn elevation.
-   */
-  async runWithSudo<T>(
-    userId: string,
-    sessionId: string | undefined,
-    fn: () => Promise<T>,
-    options?: { consume?: boolean },
-  ): Promise<T> {
-    await this.requireSudo(userId, sessionId);
-    const result = await fn();
-    if (options?.consume) {
-      try {
-        await this.consumeSudo(userId, sessionId);
-      } catch {
-        // Mutation already committed; grant may have expired or been taken.
-      }
-    }
-    return result;
-  }
-
-  /** One-shot alias: {@link runWithSudo} with `consume: true`. */
-  runWithSudoOnce<T>(
-    userId: string,
-    sessionId: string | undefined,
-    fn: () => Promise<T>,
-  ): Promise<T> {
-    return this.runWithSudo(userId, sessionId, fn, { consume: true });
   }
 
   async status(

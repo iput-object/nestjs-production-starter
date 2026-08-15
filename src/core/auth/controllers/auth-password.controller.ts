@@ -11,8 +11,8 @@ import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
+import { RequireSudo } from '@/core/auth/decorators/require-sudo.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import locals from '@/locals';
 import { ChangePasswordDto } from '@/core/auth/dto/request/change-password.dto';
 import {
@@ -106,7 +106,7 @@ export class AuthPasswordController {
     return { message: locals.auth.password_changed };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Post('password/set')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -115,10 +115,9 @@ export class AuthPasswordController {
   @ApiOkResponse()
   async setPassword(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: SetPasswordDto,
   ): Promise<ServiceResponse<void>> {
-    await this.passwordChange.set(userId, sessionId, dto.password);
+    await this.passwordChange.set(userId, dto.password);
     return { message: locals.auth.password_set };
   }
 }

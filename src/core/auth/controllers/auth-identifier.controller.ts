@@ -17,8 +17,8 @@ import type { Response } from 'express';
 import type { ServiceResponse } from '@/common/core/interceptors/response.interceptor';
 import { AllowUnverified } from '@/core/auth/decorators/allow-unverified.decorator';
 import { CurrentUser } from '@/core/auth/decorators/current-user.decorator';
+import { RequireSudo } from '@/core/auth/decorators/require-sudo.decorator';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt.guard';
-import { SudoGuard } from '@/core/auth/guards/sudo.guard';
 import locals from '@/locals';
 import {
   AddEmailDto,
@@ -63,17 +63,16 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('identifiers/email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a secondary email (sudo required)' })
   @ApiOkResponse()
   async addEmail(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: AddEmailDto,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.requestAddEmail(userId, sessionId, dto.email);
+    await this.identifiers.requestAddEmail(userId, dto.email);
     return { message: locals.auth.email_change_requested };
   }
 
@@ -101,17 +100,16 @@ export class AuthIdentifierController {
     return { message: locals.auth.email_added };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('identifiers/phone')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request adding a phone number (sudo required)' })
   @ApiOkResponse()
   async addPhone(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: AddPhoneDto,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.requestAddPhone(userId, sessionId, dto.phone);
+    await this.identifiers.requestAddPhone(userId, dto.phone);
     return { message: locals.auth.phone_change_requested };
   }
 
@@ -128,44 +126,41 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_added };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Post('identifiers/:id/primary')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set an identifier as primary (sudo required)' })
   @ApiOkResponse()
   async setPrimaryIdentifier(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Param('id') id: string,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.setPrimary(userId, sessionId, id);
+    await this.identifiers.setPrimary(userId, id);
     return { message: locals.auth.primary_identifier_updated };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @Delete('identifiers/:id')
   @ApiOperation({ summary: 'Remove a non-primary identifier (sudo required)' })
   @ApiOkResponse()
   async removeIdentifier(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Param('id') id: string,
   ): Promise<ServiceResponse<void>> {
-    await this.identifiers.remove(userId, sessionId, id);
+    await this.identifiers.remove(userId, id);
     return { message: locals.auth.identifier_removed };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('email/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary email change (sudo required)' })
   @ApiOkResponse()
   async requestEmailChange(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: RequestEmailChangeDto,
   ): Promise<ServiceResponse<void>> {
-    await this.changeContact.requestEmailChange(userId, sessionId, dto.email);
+    await this.changeContact.requestEmailChange(userId, dto.email);
     return { message: locals.auth.email_change_requested };
   }
 
@@ -207,17 +202,16 @@ export class AuthIdentifierController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo()
   @Post('phone/change/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request primary phone change (sudo required)' })
   @ApiOkResponse()
   async requestPhoneChange(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Body() dto: RequestPhoneChangeDto,
   ): Promise<ServiceResponse<void>> {
-    await this.changeContact.requestPhoneChange(userId, sessionId, dto.phone);
+    await this.changeContact.requestPhoneChange(userId, dto.phone);
     return { message: locals.auth.phone_change_requested };
   }
 
@@ -234,7 +228,7 @@ export class AuthIdentifierController {
     return { message: locals.auth.phone_changed };
   }
 
-  @UseGuards(JwtAuthGuard, SudoGuard)
+  @RequireSudo({ consume: true })
   @AllowUnverified()
   @Post('account/deactivate')
   @HttpCode(HttpStatus.OK)
@@ -244,10 +238,9 @@ export class AuthIdentifierController {
   @ApiOkResponse()
   async deactivateAccount(
     @CurrentUser('sub') userId: string,
-    @CurrentUser('sid') sessionId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ServiceResponse<void>> {
-    await this.accountLifecycle.deactivate(userId, sessionId);
+    await this.accountLifecycle.deactivate(userId);
     this.cookies.clearAuthCookies(res);
     return { message: locals.auth.account_deactivated };
   }

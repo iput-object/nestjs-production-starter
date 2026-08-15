@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request } from 'express';
 import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
 import { ALLOW_UNVERIFIED_KEY } from '@/core/auth/decorators/allow-unverified.decorator';
 import { OPTIONAL_AUTH_KEY } from '@/core/auth/decorators/optional-auth.decorator';
 import { TOKEN_TYPE_KEY } from '@/core/auth/decorators/token-type.decorator';
+import { getAuthRequest } from '@/core/auth/helpers/auth-context.helper';
 import { JwtPayload, JwtTokenType } from '@/core/auth/types/jwt-payload.type';
 import locals from '@/locals';
 
@@ -69,8 +69,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return user;
   }
 
+  getRequest(context: ExecutionContext) {
+    return getAuthRequest(context);
+  }
+
   private hasCredentials(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = getAuthRequest(context);
 
     const authorization = request.headers?.authorization;
     const hasBearer =
