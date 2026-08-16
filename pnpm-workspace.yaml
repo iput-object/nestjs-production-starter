@@ -6,12 +6,16 @@ allowBuilds:
   prisma: true
   protobufjs: true
   unrs-resolver: true
+overrides:
+  js-yaml@3: 3.15.1
+  js-yaml@5: 5.2.2
+  uuid@9: 11.1.1
 minimumReleaseAgeExclude:
   - uuid@11.1.1
-  - '@opentelemetry/auto-instrumentations-node@0.75.0'
-  - '@opentelemetry/sdk-node@0.217.0'
-  - '@opentelemetry/exporter-prometheus@0.217.0'
-  - '@opentelemetry/core@2.8.0'
-  - nodemailer@9.0.1
-  - '@opentelemetry/propagator-jaeger@2.9.0'
+  - '@opentelemetry/auto-instrumentations-node@0.79.0'
+  - '@opentelemetry/sdk-node@0.221.0'
+  - '@opentelemetry/exporter-prometheus@0.221.0'
+  - '@opentelemetry/core@2.10.0'
+  - nodemailer@9.0.5
+  - '@opentelemetry/propagator-jaeger@2.10.0'
   - js-yaml@3.15.1 || 5.2.2

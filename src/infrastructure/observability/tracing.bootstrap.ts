@@ -61,7 +61,7 @@ const metricReader = new PeriodicExportingMetricReader({
 export const otelSdk = new NodeSDK({
   resource,
   traceExporter,
-  metricReader,
+  metricReaders: [metricReader],
   instrumentations: [
     getNodeAutoInstrumentations({
       // Disable fs spans — extremely noisy and rarely useful.
