@@ -21,7 +21,7 @@ importers:
         version: 3.1111.0
       '@nestjs/bullmq':
         specifier: ^11.0.5
-        version: 11.0.5(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(bullmq@6.1.2(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))
+        version: 11.0.5(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(bullmq@6.2.0(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))
       '@nestjs/common':
         specifier: ^11.2.1
         version: 11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
@@ -86,8 +86,8 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       bullmq:
-        specifier: ^6.1.2
-        version: 6.1.2(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
+        specifier: ^6.2.0
+        version: 6.2.0(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -2624,8 +2624,8 @@ packages:
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
 
-  bullmq@6.1.2:
-    resolution: {integrity: sha512-GSX8JfWN8CElAGDyt7Zmq59n1FfWZ0L7IjsThNUQq7X8mvVVDb9I5i2F+nFg4A00UbysJ5yejN0oWzmbUJPDFg==}
+  bullmq@6.2.0:
+    resolution: {integrity: sha512-9BVvqp1nJ6jzG2Ap37sZ+ucseAgHU+fxecLkHCcTJf8SMvLtRPSy1q5J7n7kutw+Hfwsa+araPPTULJSX3ID8g==}
     engines: {node: '>=14.17.0'}
     peerDependencies:
       bullmq-otel: '>=2.0.0'
@@ -3086,9 +3086,6 @@ packages:
   es-errors@1.3.0:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==}
     engines: {node: '>= 0.4'}
-
-  es-module-lexer@2.2.0:
-    resolution: {integrity: sha512-3lGxdTXCLfe1MYfTz1y2ksAAUM4NAOP6rPEjxGJVKO7TZ5+tvHCaQWGpC4Y3IXvW3ece0Cz1cIP4FWBxOnGCTQ==}
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
@@ -6101,12 +6098,12 @@ snapshots:
       '@nestjs/core': 11.2.1(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@11.2.1)(@nestjs/websockets@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tslib: 2.8.1
 
-  '@nestjs/bullmq@11.0.5(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(bullmq@6.1.2(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))':
+  '@nestjs/bullmq@11.0.5(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(bullmq@6.2.0(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))':
     dependencies:
       '@nestjs/bull-shared': 11.0.5(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)
       '@nestjs/common': 11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
       '@nestjs/core': 11.2.1(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@11.2.1)(@nestjs/websockets@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      bullmq: 6.1.2(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
+      bullmq: 6.2.0(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
       tslib: 2.8.1
 
   '@nestjs/cli@11.0.24(@types/node@26.2.0)(prettier@3.9.6)(uglify-js@3.19.3)':
@@ -8161,7 +8158,7 @@ snapshots:
       base64-js: 1.5.1
       ieee754: 1.2.1
 
-  bullmq@6.1.2(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0):
+  bullmq@6.2.0(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0):
     dependencies:
       cron-parser: 5.10.0
       msgpackr: 2.0.5
@@ -8549,8 +8546,6 @@ snapshots:
   es-define-property@1.0.1: {}
 
   es-errors@1.3.0: {}
-
-  es-module-lexer@2.2.0: {}
 
   es-module-lexer@2.3.2: {}
 
@@ -10750,7 +10745,7 @@ snapshots:
       browserslist: 4.28.4
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.2.0
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       glob-to-regexp: 0.4.1
