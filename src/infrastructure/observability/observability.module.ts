@@ -18,6 +18,8 @@ import type { Config } from '@/configs/environment.config';
 @Module({
   imports: [
     LoggerModule.forRootAsync({
+      imports: [],
+      providers: [],
       inject: [ConfigService],
       useFactory: (configService: ConfigService<Config, true>) =>
         buildLoggerOptions({

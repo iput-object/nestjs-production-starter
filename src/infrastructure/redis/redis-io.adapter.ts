@@ -6,7 +6,7 @@ import { Server, ServerOptions } from 'socket.io';
 import { RedisAdapter } from '@/infrastructure/redis/redis.adapter';
 
 export class RedisIoAdapter extends IoAdapter {
-  private readonly logger = new Logger(RedisIoAdapter.name);
+  private readonly redisLogger = new Logger(RedisIoAdapter.name);
   private adapterConstructor?: ReturnType<typeof createAdapter>;
   private subClient?: Redis;
 
@@ -21,7 +21,7 @@ export class RedisIoAdapter extends IoAdapter {
     await this.subClient.connect();
 
     this.adapterConstructor = createAdapter(pubClient, this.subClient);
-    this.logger.log('Redis WebSocket adapter enabled');
+    this.redisLogger.log('Redis WebSocket adapter enabled');
   }
 
   createIOServer(port: number, options?: ServerOptions): Server {

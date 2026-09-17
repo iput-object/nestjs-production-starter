@@ -23,6 +23,7 @@ import { StorageModule } from '@/infrastructure/storage/storage.module';
     ContextModule,
     ObservabilityModule,
     ThrottlerModule.forRootAsync({
+      imports: [],
       inject: [ConfigService],
       useFactory: (configService: ConfigService<Config, true>) => {
         const config = configService.getOrThrow('app', { infer: true });
