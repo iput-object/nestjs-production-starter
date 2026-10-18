@@ -14,13 +14,6 @@ updates:
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
-      # Major bumps with breaking changes; upgrade these manually.
-      - dependency-name: dotenv
-        update-types:
-          - version-update:semver-major
-      - dependency-name: nestjs-pino
-        update-types:
-          - version-update:semver-major
     groups:
       aws-sdk:
         patterns:
