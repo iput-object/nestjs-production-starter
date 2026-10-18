@@ -21,7 +21,7 @@ importers:
         version: 3.1136.0
       '@nestjs/bullmq':
         specifier: ^12.0.0
-        version: 12.0.0(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.3)(bullmq@6.3.6(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))
+        version: 12.0.0(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.3)(bullmq@6.3.7(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))
       '@nestjs/common':
         specifier: ^12.0.1
         version: 12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
@@ -86,8 +86,8 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       bullmq:
-        specifier: ^6.3.6
-        version: 6.3.6(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
+        specifier: ^6.3.7
+        version: 6.3.7(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -2750,8 +2750,8 @@ packages:
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
-  bullmq@6.3.6:
-    resolution: {integrity: sha512-+T6T6jeONZ5AvCj4xDkjuqdXI+/Kezvi/PvNS2YrIiO3HZNS4MgI+397ORyfO3Mx6jP127jowte6fNOxAfUN2w==}
+  bullmq@6.3.7:
+    resolution: {integrity: sha512-Jk8pv/N2RuhZCmyDQBvUtGqgMzUQCPeiFaZBT0QyWrIcJiQJ/eRB5QdDmpmhc0OPnGF/qW3zC4U1br66wTUj3Q==}
     engines: {node: '>=14.17.0'}
     peerDependencies:
       bullmq-otel: '>=2.0.0'
@@ -6254,12 +6254,12 @@ snapshots:
       '@nestjs/core': 12.0.3(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@12.0.3)(@nestjs/websockets@12.0.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tslib: 2.8.1
 
-  '@nestjs/bullmq@12.0.0(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.3)(bullmq@6.3.6(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))':
+  '@nestjs/bullmq@12.0.0(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.3)(bullmq@6.3.7(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0))':
     dependencies:
       '@nestjs/bull-shared': 12.0.0(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.3)
       '@nestjs/common': 12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
       '@nestjs/core': 12.0.3(@nestjs/common@12.0.3(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@12.0.3)(@nestjs/websockets@12.0.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      bullmq: 6.3.6(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
+      bullmq: 6.3.7(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
       tslib: 2.8.1
 
   '@nestjs/cli@12.0.1(@types/node@26.6.1)(fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.2(uglify-js@3.19.3)))(prettier@3.9.6)(ts-loader@9.6.2(typescript@5.9.3)(webpack@5.106.2(uglify-js@3.19.3)))(tsconfig-paths-webpack-plugin@4.2.0)(webpack-node-externals@3.0.0)(webpack@5.106.2(uglify-js@3.19.3))':
@@ -8369,7 +8369,7 @@ snapshots:
 
   buffer-from@1.1.2: {}
 
-  bullmq@6.3.6(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0):
+  bullmq@6.3.7(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0):
     dependencies:
       cron-parser: 5.10.1
       msgpackr: 2.1.0
