@@ -98,8 +98,8 @@ importers:
         specifier: ^1.4.7
         version: 1.4.7
       dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
+        specifier: ^18.0.0
+        version: 18.0.3
       google-auth-library:
         specifier: ^11.0.2
         version: 11.0.2(supports-color@8.1.1)
