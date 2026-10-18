@@ -25,7 +25,7 @@ export class SudoConsumeInterceptor implements NestInterceptor {
     const user = getAuthUser(context);
 
     return next.handle().pipe(
-      concatMap(async (data) => {
+      concatMap(async (data: unknown) => {
         try {
           await this.sudo.consumeSudo(user?.sub ?? '', user?.sid);
         } catch {

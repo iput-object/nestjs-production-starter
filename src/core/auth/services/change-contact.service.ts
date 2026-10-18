@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { IdentifierType } from '@prisma-client';
 import { AuthProvider } from '@/core/auth/constants/auth-provider.constants';
 import { OtpPurpose } from '@/core/auth/constants/otp-purpose.constants';
@@ -257,8 +253,7 @@ export class ChangeContactService {
   private async syncTwoFactorDestination(
     userId: string,
     type:
-      | typeof TwoFactorMethodType.EMAIL_OTP
-      | typeof TwoFactorMethodType.SMS_OTP,
+      typeof TwoFactorMethodType.EMAIL_OTP | typeof TwoFactorMethodType.SMS_OTP,
     newDestination: string,
   ): Promise<void> {
     const method = await this.twoFactor.findByUserAndType(userId, type);
@@ -267,9 +262,7 @@ export class ChangeContactService {
     }
 
     const verified = await this.identifiers.listVerifiedForUser(userId);
-    const stillValid = verified.some(
-      (row) => row.value === method.destination,
-    );
+    const stillValid = verified.some((row) => row.value === method.destination);
     if (stillValid) {
       return;
     }

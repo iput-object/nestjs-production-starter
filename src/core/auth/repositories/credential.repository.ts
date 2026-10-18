@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Credential } from '@prisma-client';
 import type { AuthProviderValue } from '@/core/auth/constants/auth-provider.constants';
-import { mapPrismaSerializationFailure, runSerializable } from '@/common/utils/prisma-error.util';
+import {
+  mapPrismaSerializationFailure,
+  runSerializable,
+} from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateCredentialInput {

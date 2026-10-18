@@ -86,10 +86,7 @@ export class TwoFactorRepository {
    * Atomically mark a backup code used. Returns true only for the winner of
    * a concurrent claim on the same unused hash.
    */
-  async tryClaimBackupCode(
-    userId: string,
-    codeHash: string,
-  ): Promise<boolean> {
+  async tryClaimBackupCode(userId: string, codeHash: string): Promise<boolean> {
     const result = await this.prisma.twoFactorBackupCode.updateMany({
       where: { userId, codeHash, usedAt: null },
       data: { usedAt: new Date() },
@@ -97,10 +94,7 @@ export class TwoFactorRepository {
     return result.count === 1;
   }
 
-  updateDestination(
-    id: string,
-    destination: string,
-  ): Promise<TwoFactorMethod> {
+  updateDestination(id: string, destination: string): Promise<TwoFactorMethod> {
     return this.prisma.twoFactorMethod.update({
       where: { id },
       data: { destination },

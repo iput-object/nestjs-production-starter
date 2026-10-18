@@ -60,7 +60,7 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
             success: true,
             message:
               message ??
-              response.locals.message ??
+              (response.locals.message as string | undefined) ??
               this.defaultMessage(statusCode, request.method),
             statusCode,
             ...(data !== undefined && { data }),
@@ -73,7 +73,7 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
         return {
           success: true,
           message:
-            response.locals.message ??
+            (response.locals.message as string | undefined) ??
             this.defaultMessage(statusCode, request.method),
           statusCode,
           ...(returned !== undefined &&

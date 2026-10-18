@@ -266,7 +266,9 @@ export class OAuthService {
       throw new NotFoundException(locals.auth.oauth_not_linked);
     }
     if (outcome === 'last') {
-      throw new BadRequestException(locals.auth.cannot_unlink_last_login_method);
+      throw new BadRequestException(
+        locals.auth.cannot_unlink_last_login_method,
+      );
     }
     if (outcome === 'conflict') {
       throw new ConflictException(locals.auth.action_conflict);

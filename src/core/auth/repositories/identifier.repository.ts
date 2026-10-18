@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { IdentifierType, Prisma, type User, type UserIdentifier } from '@prisma-client';
-import { mapPrismaSerializationFailure, runSerializable } from '@/common/utils/prisma-error.util';
+import {
+  IdentifierType,
+  Prisma,
+  type User,
+  type UserIdentifier,
+} from '@prisma-client';
+import {
+  mapPrismaSerializationFailure,
+  runSerializable,
+} from '@/common/utils/prisma-error.util';
 import { PrismaService } from '@/database/prisma.service';
 
 export interface CreateIdentifierInput {

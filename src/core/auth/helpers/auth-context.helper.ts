@@ -35,9 +35,7 @@ function bearerFrom(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) {
     return undefined;
   }
-  return value.toLowerCase().startsWith('bearer ')
-    ? value
-    : `Bearer ${value}`;
+  return value.toLowerCase().startsWith('bearer ') ? value : `Bearer ${value}`;
 }
 
 function headersFrom(value: unknown): Record<string, unknown> {
@@ -105,7 +103,7 @@ function attachAuthShape(
   if (!carrier.cookies && cookies) {
     carrier.cookies = cookies;
   }
-  return carrier as AuthRequestLike;
+  return carrier;
 }
 
 function fromHttp(context: ExecutionContext): AuthRequestLike {
@@ -130,7 +128,8 @@ function fromWs(context: ExecutionContext): AuthRequestLike {
 
 function fromRpc(context: ExecutionContext): AuthRequestLike {
   const rpc = context.switchToRpc();
-  const rpcContext = asRecord(rpc.getContext()) ?? asRecord(rpc.getData()) ?? {};
+  const rpcContext =
+    asRecord(rpc.getContext()) ?? asRecord(rpc.getData()) ?? {};
   const headers = headersFrom(
     typeof rpcContext.getHeaders === 'function'
       ? (rpcContext.getHeaders as () => unknown)()

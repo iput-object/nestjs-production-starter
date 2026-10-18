@@ -47,6 +47,7 @@ export async function prismaPaginate<
     sortDirection?: 'asc' | 'desc';
   },
 ): Promise<PaginatedResult<Prisma.Result<TDelegate, TArgs, 'findMany'>>> {
+  const query = args as TArgs & { where?: unknown; orderBy?: unknown };
   const cursorField = options?.cursorField ?? 'id';
   const sortField = options?.sortField;
   const sortDirection = options?.sortDirection ?? 'desc';
@@ -95,12 +96,12 @@ export async function prismaPaginate<
       ...args,
       take: limit + 1,
       where: keysetWhere
-        ? args.where
-          ? { AND: [args.where, keysetWhere] }
+        ? query.where
+          ? { AND: [query.where, keysetWhere] }
           : keysetWhere
-        : args.where,
+        : query.where,
       orderBy:
-        args.orderBy ??
+        query.orderBy ??
         (activeSortField === cursorField
           ? { [cursorField]: sortDirection }
           : [
@@ -138,7 +139,7 @@ export async function prismaPaginate<
   });
 
   const total = await delegate.count({
-    where: args.where,
+    where: query.where,
   });
 
   return {

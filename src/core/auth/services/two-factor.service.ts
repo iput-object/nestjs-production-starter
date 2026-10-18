@@ -325,7 +325,7 @@ export class TwoFactorService {
       );
     }
 
-    let ok = false;
+    let ok: boolean;
     if (type === TwoFactorMethodType.TOTP) {
       if (!method.secret) {
         throw new ForbiddenException(locals.auth.totp_method_missing_secret);
@@ -350,7 +350,9 @@ export class TwoFactorService {
     if (ok) {
       const claimed = await this.cache.takeTwoFactorChallenge(challengeId);
       if (!claimed) {
-        throw new UnauthorizedException(locals.auth.challenge_invalid_or_expired);
+        throw new UnauthorizedException(
+          locals.auth.challenge_invalid_or_expired,
+        );
       }
       await this.twoFactor.touchLastUsed(method.id);
       return this.tokens.issue(user.id);
