@@ -158,8 +158,8 @@ importers:
         specifier: ^4.8.3
         version: 4.8.3(supports-color@8.1.1)
       twilio:
-        specifier: ^6.1.0
-        version: 6.1.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+        specifier: ^6.1.1
+        version: 6.1.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -5104,8 +5104,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  twilio@6.1.0:
-    resolution: {integrity: sha512-a226jNHitbQQoLs4chB9TGzG2mOrxKR9NHs5XH8ZE4k48MQWdAwh+Hh6JsVB0hmCrsZpyHCsybf81Se6u6627A==}
+  twilio@6.1.1:
+    resolution: {integrity: sha512-d9xFCQaa8DpuDvFiG49TwmppmULHhqzEVncpppazS5oZv5O0E9Wb76STCHt4q+ZjWDL6RAtKey+u8jWcQLKWjw==}
     engines: {node: '>=20.0.0'}
 
   type-check@0.4.0:
@@ -10955,7 +10955,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  twilio@6.1.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
+  twilio@6.1.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
       axios: 1.19.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       dayjs: 1.11.22
