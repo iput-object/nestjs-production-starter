@@ -89,7 +89,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
-    "globals": "^17.11.0",
+    "globals": "^17.13.0",
     "jest": "^30.5.0",
     "nestjs": "^0.0.1",
     "pino-pretty": "^13.1.3",
