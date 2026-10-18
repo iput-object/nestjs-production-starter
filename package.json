@@ -54,7 +54,7 @@
     "ioredis": "^6.0.0",
     "jose": "^6.2.10",
     "nestjs-cls": "^6.3.0",
-    "nestjs-pino": "^4.6.1",
+    "nestjs-pino": "^5.2.0",
     "nodemailer": "^9.0.5",
     "otplib": "^13.5.0",
     "passport": "^0.7.0",
