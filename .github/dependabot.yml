@@ -10,7 +10,7 @@ updates:
       day: monday
     open-pull-requests-limit: 10
     ignore:
-      # Nest 11 still ships TypeScript 5.9. TS 6 is optional; TS 7 breaks nest-cli.
+      # Nest CLI ships TypeScript 6. The next major (TS 7) breaks nest-cli.
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
@@ -25,11 +25,10 @@ updates:
         patterns:
           - '@prisma/*'
           - prisma
-      eslint:
+      oxlint:
         patterns:
-          - eslint*
-          - '@eslint/*'
-          - typescript-eslint
+          - oxlint
+          - oxlint-tsgolint
       opentelemetry:
         # Versions must move together to avoid duplicate SDK internals.
         patterns:

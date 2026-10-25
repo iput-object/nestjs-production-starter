@@ -12,8 +12,8 @@
 
 ## 16. TypeScript hygiene
 
-- `strictNullChecks` is on. Handle `null`/`undefined` explicitly.
-- `noImplicitAny` is **off** in this repo, but **don't** rely on it — prefer typed parameters everywhere. The ESLint rule `@typescript-eslint/no-explicit-any` is also off; use `any` only when interfacing with a typed-poorly third-party API, and narrow it inside the function.
+- `strict` is on (`strictPropertyInitialization` stays off, matching the Nest CLI). Handle `null`/`undefined` explicitly and type parameters.
+- Oxlint's `typescript/no-explicit-any` is off. Use `any` only when interfacing with a poorly typed third-party API, and narrow it inside the function.
 - Use Prisma's generated types from `@prisma-client` — don't re-declare row shapes.
 - Use discriminated unions for service results that have multiple shapes (`LoginResult` is the canonical example: `{ kind: 'tokens', ... } | { kind: 'two-factor', ... }`).
 

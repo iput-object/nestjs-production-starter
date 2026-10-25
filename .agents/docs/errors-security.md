@@ -12,7 +12,7 @@ Backing principles: [R14](#r14), [R15](#r15), [R13](#r13).
   - `HttpException(message, HttpStatus.TOO_MANY_REQUESTS)` etc. for status codes without a named subclass.
 - Don't leak Prisma errors. Catch `P2002` (unique) and translate to a user-facing message.
 - Don't reveal whether an account exists during login/reset — return the same message for "no user" and "wrong password" (see `LoginService.login`).
-- Async errors must be awaited or returned. The eslint rule `@typescript-eslint/no-floating-promises` is on (warn) — fix it, don't ignore it.
+- Async errors must be awaited or returned. Oxlint's `typescript/no-floating-promises` is an error — fix it, don't ignore it.
 
 ## 9. Security
 
