@@ -53,7 +53,7 @@
     "google-auth-library": "^11.0.2",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
-    "jose": "^6.2.10",
+    "jose": "^6.2.13",
     "nestjs-cls": "^6.3.0",
     "nestjs-pino": "^5.2.0",
     "nodemailer": "^9.0.5",
