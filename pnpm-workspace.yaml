@@ -8,8 +8,26 @@ allowBuilds:
   protobufjs: true
   unrs-resolver: true
 overrides:
-  js-yaml@3: 3.15.1
-  js-yaml@5: 5.2.2
+  '@grpc/grpc-js': 1.14.5
+  axios: 1.20.0
+  baseline-browser-mapping: 2.11.0
+  body-parser: 2.4.0
+  brace-expansion@1: 1.1.21
+  brace-expansion@2: 2.1.7
+  brace-expansion@5: 5.0.12
+  browserslist: 4.28.7
+  deepmerge-ts: 8.0.0
+  engine.io: 6.6.10
+  fast-uri: 3.1.9
+  follow-redirects: 1.16.1
+  handlebars: 4.7.10
+  js-yaml@3: 3.15.2
+  js-yaml@5: 5.4.1
+  multer: 2.5.0
+  mysql2: 3.23.1
+  qs@6: 6.16.1
+  tmp: 0.2.6
+  undici: 6.28.1
   uuid@9: 11.1.1
 minimumReleaseAgeExclude:
   - uuid@11.1.1
@@ -17,6 +35,6 @@ minimumReleaseAgeExclude:
   - '@opentelemetry/sdk-node@0.221.0'
   - '@opentelemetry/exporter-prometheus@0.221.0'
   - '@opentelemetry/core@2.10.0'
-  - nodemailer@9.0.5
   - '@opentelemetry/propagator-jaeger@2.10.0'
-  - js-yaml@3.15.1 || 5.2.2
+  - nodemailer@10.1.4
+  - js-yaml@3.15.2 || 5.4.1
