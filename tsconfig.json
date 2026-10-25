@@ -25,7 +25,7 @@
       "@": ["./src"],
       "@/*": ["./src/*"],
       "@prisma-client": ["./src/database/prisma-client"],
-      "@locals": ["./src/locals"]
-    }
-  }
+      "@locals": ["./src/locals"],
+    },
+  },
 }

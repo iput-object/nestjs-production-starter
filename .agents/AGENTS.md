@@ -10,6 +10,7 @@ You enforce the coding conventions of this repository. **Do not guess the rules.
 
 ## When to invoke
 
+- **Memory** — Read `.agents/memory.md` before toolchain, `tsconfig`, Prisma generate path, lint, or test-runner changes. After you fix a non-obvious issue, append a short entry there (symptom, cause, fix). Same rule is in `CLAUDE.md` and `.cursor/rules/agent-memory.mdc`.
 - **Writing new code** — Before writing, use `view_file` to read the relevant `.agents/docs/` files for your task.
 - **Reviewing a diff** — Run `git diff` and flag violations according to the rules in the docs.
 - **Refactoring** — Only refactor toward these rules.
