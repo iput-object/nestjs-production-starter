@@ -7,6 +7,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Config } from '@/configs/environment.config';
 import { ACCESS_TOKEN_COOKIE } from '@/core/auth/auth.constants';
 import { IdentifierRepository } from '@/core/auth/repositories/identifier.repository';
+import { SessionRepository } from '@/core/auth/repositories/session.repository';
 import { UserRepository } from '@/core/auth/repositories/user.repository';
 import { JwtPayload } from '@/core/auth/types/jwt-payload.type';
 import locals from '@/locals';
@@ -17,6 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     configService: ConfigService<Config>,
     private readonly users: UserRepository,
     private readonly identifiers: IdentifierRepository,
+    private readonly sessions: SessionRepository,
   ) {
     const auth = configService.get<Config['auth']>('auth');
     super({
@@ -35,9 +37,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException(locals.auth.access_token_required);
     }
 
-    const user = await this.users.findById(payload.sub);
+    const [user, session] = await Promise.all([
+      this.users.findById(payload.sub),
+      payload.sid ? this.sessions.findActiveById(payload.sid) : null,
+    ]);
     if (!user || user.isDeleted || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException(locals.auth.account_no_longer_available);
+    }
+    if (!session || session.userId !== payload.sub) {
+      throw new UnauthorizedException(locals.auth.session_expired);
     }
 
     const isAccountVerified = await this.identifiers.isAccountVerified(

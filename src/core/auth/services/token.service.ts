@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -142,7 +143,10 @@ export class TokenService {
   signRefreshToken(userId: string): Promise<string> {
     const auth = this.config.get<Config['auth']>('auth')!;
     const payload: JwtPayload = { sub: userId, tokenType: 'refresh' };
+    // Without a unique id, two tokens issued in the same second are identical
+    // and collide on the session's unique refreshTokenHash.
     return this.jwt.signAsync(payload, {
+      jwtid: randomUUID(),
       secret: auth.jwtRefreshSecret,
       expiresIn: this.parseDurationSeconds(auth.jwtRefreshExpiresIn),
     });
