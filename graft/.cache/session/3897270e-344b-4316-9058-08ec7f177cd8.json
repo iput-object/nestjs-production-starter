@@ -1,0 +1,11 @@
+{
+  "lastQuery": null,
+  "perAgentQuery": {},
+  "graftReads": 0,
+  "sourceReads": 14,
+  "savedTokens": 0,
+  "injectedPointers": [],
+  "nudges": 0,
+  "host": "claude-code",
+  "summarized": true
+}
