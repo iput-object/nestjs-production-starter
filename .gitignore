@@ -62,3 +62,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Don't judge me, but i really keep it clean in development!
 /prisma/migrations
 /docs
+
+# graft code-index cache
+graft/
